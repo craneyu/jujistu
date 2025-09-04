@@ -5,12 +5,13 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, Camera, Image, X } from 'lucide-react';
 
 interface Props {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File, uploadedInfo?: { filename: string; url: string }) => void;
   accept?: string;
   maxSize?: number;
   label: string;
   description?: string;
   allowCamera?: boolean;
+  fileType: 'photo' | 'coachCertificate' | 'consentForm';
 }
 
 export default function FileUpload({ 
@@ -19,15 +20,46 @@ export default function FileUpload({
   maxSize = 10 * 1024 * 1024, // 10MB
   label,
   description,
-  allowCamera = true
+  allowCamera = true,
+  fileType
 }: Props) {
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', fileType);
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || '檔案上傳失敗');
+      }
+      
+      return result;
+    } catch (error: any) {
+      setUploadError(error.message);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      onFileSelect(file);
       setFileName(file.name);
       
       // Create preview for images
@@ -40,8 +72,20 @@ export default function FileUpload({
       } else {
         setPreview(null);
       }
+      
+      try {
+        // Upload the file
+        const uploadResult = await uploadFile(file);
+        onFileSelect(file, {
+          filename: uploadResult.filename,
+          url: uploadResult.url
+        });
+      } catch (error) {
+        // If upload fails, still pass the file but without upload info
+        onFileSelect(file);
+      }
     }
-  }, [onFileSelect]);
+  }, [onFileSelect, fileType]);
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop,
@@ -127,46 +171,61 @@ export default function FileUpload({
           </div>
         ) : (
           <div>
-            <div className="flex justify-center items-center space-x-2 mb-2">
-              <Upload className="h-8 w-8 text-gray-400" />
-              {allowCamera && (
-                <>
-                  <span className="text-gray-400">或</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCameraClick();
-                    }}
-                    className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                  >
-                    <Camera className="h-8 w-8" />
-                  </button>
-                </>
-              )}
-            </div>
-            
-            {isDragActive ? (
-              <p className="text-blue-600 font-semibold">拖放文件到這裡...</p>
+            {uploading ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                <p className="text-blue-600 font-semibold">上傳中...</p>
+              </div>
             ) : (
               <div>
-                <p className="text-gray-800 font-semibold">
-                  點擊選擇文件或拖放到這裡
-                </p>
-                {allowCamera && (
-                  <p className="text-gray-700 text-sm mt-1 font-medium">
-                    也可以點擊相機圖示拍照上傳
-                  </p>
+                <div className="flex justify-center items-center space-x-2 mb-2">
+                  <Upload className="h-8 w-8 text-gray-400" />
+                  {allowCamera && (
+                    <>
+                      <span className="text-gray-400">或</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCameraClick();
+                        }}
+                        className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
+                      >
+                        <Camera className="h-8 w-8" />
+                      </button>
+                    </>
+                  )}
+                </div>
+                
+                {isDragActive ? (
+                  <p className="text-blue-600 font-semibold">拖放文件到這裡...</p>
+                ) : (
+                  <div>
+                    <p className="text-gray-800 font-semibold">
+                      點擊選擇文件或拖放到這裡
+                    </p>
+                    {allowCamera && (
+                      <p className="text-gray-700 text-sm mt-1 font-medium">
+                        也可以點擊相機圖示拍照上傳
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {description && (
+                  <p className="mt-2 text-xs text-gray-700 font-medium">{description}</p>
                 )}
               </div>
-            )}
-            
-            {description && (
-              <p className="mt-2 text-xs text-gray-700 font-medium">{description}</p>
             )}
           </div>
         )}
       </div>
+
+      {uploadError && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-sm text-red-600 font-medium">{uploadError}</p>
+        </div>
+      )}
 
       {fileRejections.length > 0 && (
         <div className="mt-2">

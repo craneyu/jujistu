@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 報名單位
+model RegistrationUnit {
+  id           String       @id @default(cuid())
+  name         String       // 單位名稱
+  address      String?      // 地址
+  contactName  String       // 聯絡人
+  phone        String       // 聯絡電話
+  email        String       @unique // 電子郵件
+  password     String       // 密碼 (hashed)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  athletes     Athlete[]    // 該單位的選手
+  payments     Payment[]    // 該單位的繳費記錄
+}
+
+// 選手
+model Athlete {
+  id                 String              @id @default(cuid())
+  unitId             String              // 所屬單位
+  unit               RegistrationUnit    @relation(fields: [unitId], references: [id])
+  
+  // 基本資料
+  name               String              // 姓名
+  nationalId         String              // 身份證字號
+  gender             String              // 性別 (M/F)
+  birthDate          DateTime            // 出生年月日
+  phone              String?             // 聯絡電話
+  email              String?             // 電子郵件
+  
+  // 緊急聯絡人資訊
+  emergencyContactName String            // 緊急聯絡人姓名
+  emergencyContactPhone String           // 緊急聯絡人電話
+  emergencyContactRelation String        // 與緊急聯絡人之關係
+  
+  // 競賽相關
+  ageGroup           String              // 報名組別 (adult/youth/junior/child/master)
+  masterCategory     String?             // 大師組類別 (M1/M2/M3)
+  belt               String              // 段位 (white/blue/purple/brown/black)
+  weight             Float               // 體重(公斤)
+  
+  // 教練資訊
+  coachName          String              // 教練姓名
+  coachCertificate   String?             // 教練證上傳路徑
+  
+  // 文件上傳
+  photo              String?             // 照片上傳路徑
+  consentForm        String?             // 選手保證暨個人資料授權同意書路徑
+  
+  // 系統資訊
+  registrationStatus String              @default("pending") // pending/confirmed/cancelled
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  
+  // 關聯
+  registrations      Registration[]      // 報名項目
+}
+
+// 報名項目
+model Registration {
+  id            String       @id @default(cuid())
+  athleteId     String       // 選手
+  athlete       Athlete      @relation(fields: [athleteId], references: [id])
+  
+  // 項目資訊
+  eventType     String       // 項目類型 (fighting/newaza/fullcontact/duo_traditional/duo_creative/nogi)
+  eventDetail   String?      // 項目細節
+  weightClass   String       // 體重級別
+  teamPartnerId String?      // 演武項目的隊友ID
+  genderDivision String?     // 演武項目的性別組別 (men/women/mixed)
+  
+  // 狀態
+  status        String       @default("pending") // pending/confirmed/cancelled
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // 索引
+  @@unique([athleteId, eventType, eventDetail])
+}
+
+// 繳費記錄
+model Payment {
+  id              String              @id @default(cuid())
+  unitId          String              // 報名單位
+  unit            RegistrationUnit    @relation(fields: [unitId], references: [id])
+  
+  // 繳費資訊
+  totalAmount     Float               // 總金額
+  paymentStatus   String              @default("pending") // pending/paid/confirmed
+  
+  // 匯款資訊
+  bankName        String?             // 銀行名稱
+  accountLastFive String?             // 帳號後五碼
+  transferDate    DateTime?           // 匯款日期
+  transferAmount  Float?              // 匯款金額
+  proofImage      String?             // 匯款證明圖片路徑
+  
+  // 系統資訊
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  confirmedAt     DateTime?           // 確認時間
+  confirmedBy     String?             // 確認人員
+  
+  // 備註
+  notes           String?             // 備註
+}
+
+// 競賽項目設定 (系統設定)
+model EventCategory {
+  id           String       @id @default(cuid())
+  eventType    String       // fighting/newaza/fullcontact/duo/nogi
+  ageGroup     String       // adult/youth/junior/child/master
+  gender       String?      // M/F/mixed
+  weightClass  String       // 體重級別代碼
+  minWeight    Float?       // 最小體重
+  maxWeight    Float?       // 最大體重
+  description  String       // 級別描述
+  enabled      Boolean      @default(true)
+  
+  @@unique([eventType, ageGroup, gender, weightClass])
+}
+
+// 系統設定
+model SystemConfig {
+  id           String       @id @default(cuid())
+  key          String       @unique
+  value        String
+  description  String?
+  updatedAt    DateTime     @updatedAt
+}

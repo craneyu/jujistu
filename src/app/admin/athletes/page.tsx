@@ -179,8 +179,8 @@ export default function AthletesManagement() {
       case 'fighting': return '對打組';
       case 'newaza': return '寢技組'; 
       case 'fullcontact': return '格鬥組';
-      case 'duo_traditional': return '雙人傳統演武';
-      case 'duo_creative': return '雙人創意演武';
+      case 'duo': return '雙人傳統演武';
+      case 'show': return '雙人創意演武';
       case 'nogi': return '無道袍組';
       default: return eventType;
     }
@@ -189,8 +189,8 @@ export default function AthletesManagement() {
   const getAgeGroupText = (ageGroup: string) => {
     switch (ageGroup) {
       case 'child': return '兒童組';
+      case 'junior': return '青少年組';
       case 'youth': return '青年組';
-      case 'junior': return '少年組';
       case 'adult': return '成人組';
       case 'master': return '大師組';
       default: return ageGroup;
@@ -203,7 +203,7 @@ export default function AthletesManagement() {
 
   // 計算正確的量級或分組
   const getDisplayCategory = (registration: any, athlete: any) => {
-    const isDuoEvent = registration.eventType === 'duo_creative' || registration.eventType === 'duo_traditional';
+    const isDuoEvent = registration.eventType === 'show' || registration.eventType === 'duo';
     
     if (isDuoEvent) {
       // 演武項目：顯示性別分組
@@ -515,6 +515,15 @@ export default function AthletesManagement() {
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                         <div><span className="font-semibold text-gray-800">性別:</span> <span className="text-gray-900 font-medium">{selectedAthlete.gender === 'M' ? '男性' : '女性'}</span></div>
                         <div><span className="font-semibold text-gray-800">年齡:</span> <span className="text-gray-900 font-medium">{getAge(selectedAthlete.birthDate)} 歲</span></div>
+                        <div><span className="font-semibold text-gray-800">組別:</span> <span className="text-gray-900 font-medium">{getAgeGroupText(selectedAthlete.ageGroup)}</span></div>
+                        {selectedAthlete.masterCategory && (
+                          <div><span className="font-semibold text-gray-800">大師組:</span> <span className="text-blue-700 font-semibold">
+                            {selectedAthlete.masterCategory}
+                            {selectedAthlete.masterCategory === 'M1' && ' (35-39歲)'}
+                            {selectedAthlete.masterCategory === 'M2' && ' (40-44歲)'}
+                            {selectedAthlete.masterCategory === 'M3' && ' (45歲以上)'}
+                          </span></div>
+                        )}
                         <div><span className="font-semibold text-gray-800">體重:</span> <span className="text-gray-900 font-medium">{selectedAthlete.weight} kg</span></div>
                         <div><span className="font-semibold text-gray-800">段帶:</span> <span className="text-gray-900 font-medium">{getBeltText(selectedAthlete.belt)}</span></div>
                         <div><span className="font-semibold text-gray-800">教練:</span> <span className="text-gray-900 font-medium">{selectedAthlete.coachName}</span></div>

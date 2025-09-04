@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Shield, User, Lock } from 'lucide-react';
+import { useCompetitionConfig } from '@/hooks/useCompetitionConfig';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { config } = useCompetitionConfig();
   const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -46,7 +48,7 @@ export default function AdminLogin() {
             <Shield className="w-8 h-8 text-blue-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">管理者後台</h1>
-          <p className="text-gray-600 mt-2">柔術錦標賽報名管理系統</p>
+          <p className="text-gray-600 mt-2">{config.competitionName}報名管理系統</p>
         </div>
 
         {error && (

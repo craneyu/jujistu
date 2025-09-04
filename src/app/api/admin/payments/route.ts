@@ -56,3 +56,67 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const admin = verifyAdmin(request);
+    if (!admin) {
+      return NextResponse.json(
+        { error: '未授權訪問' },
+        { status: 401 }
+      );
+    }
+
+    const { paymentId, paymentStatus, confirmedBy, notes } = await request.json();
+
+    if (!paymentId || !paymentStatus) {
+      return NextResponse.json(
+        { error: '缺少必要參數' },
+        { status: 400 }
+      );
+    }
+
+    const updateData: any = {
+      paymentStatus,
+      updatedAt: new Date()
+    };
+
+    if (paymentStatus === 'confirmed') {
+      updateData.confirmedAt = new Date();
+      updateData.confirmedBy = confirmedBy || admin.email;
+    }
+
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+
+    const updatedPayment = await prisma.payment.update({
+      where: { id: paymentId },
+      data: updateData,
+      include: {
+        unit: {
+          select: {
+            id: true,
+            name: true,
+            contactName: true,
+            email: true,
+            phone: true,
+            address: true
+          }
+        }
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      payment: updatedPayment
+    });
+
+  } catch (error) {
+    console.error('Payment update error:', error);
+    return NextResponse.json(
+      { error: '更新繳費狀態失敗' },
+      { status: 500 }
+    );
+  }
+}

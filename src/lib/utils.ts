@@ -7,11 +7,11 @@ export function calculateAge(birthDate: Date, referenceDate: Date = new Date('20
 export function determineAgeGroup(birthDate: Date): string {
   const age = calculateAge(birthDate);
   
-  if (age < 12) return 'child';
-  if (age >= 12 && age <= 14) return 'junior';
-  if (age >= 15 && age <= 17) return 'youth';
-  if (age >= 18 && age < 35) return 'adult';
-  return 'master';
+  if (age < 12) return 'child';        // 未滿12歲
+  if (age >= 12 && age <= 14) return 'junior';  // 12-14歲
+  if (age >= 15 && age <= 17) return 'youth';   // 15-17歲
+  if (age >= 18 && age <= 34) return 'adult';   // 18-34歲
+  return 'master';  // 35歲以上
 }
 
 export function determineMasterCategory(birthDate: Date): string | null {
@@ -114,7 +114,7 @@ export function calculateRegistrationFee(registrations: any[]): number {
     const eventType = registration.eventType;
     const ageGroup = registration.athlete.ageGroup;
     
-    if (eventType === 'duo_traditional' || eventType === 'duo_creative') {
+    if (eventType === 'duo' || eventType === 'show') {
       // For duo events, calculate per team (1200 NT$ per team)
       if (registration.teamPartnerId && registration.genderDivision) {
         // Create a unique team identifier including event type, gender division, and team members

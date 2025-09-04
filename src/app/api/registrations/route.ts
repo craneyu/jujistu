@@ -5,8 +5,7 @@ import { getWeightClass } from '@/lib/utils';
 
 const registrationSchema = z.object({
   athleteId: z.string(),
-  eventType: z.enum(['fighting', 'newaza', 'fullcontact', 'duo_traditional', 'duo_creative', 'nogi']),
-  eventDetail: z.string().optional(),
+  eventCategoryId: z.string(),
   teamPartnerId: z.string().optional()
 });
 
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Validate input
     const validatedData = registrationSchema.parse(body);
     
-    // Get athlete details to determine weight class
+    // Get athlete details
     const athlete = await prisma.athlete.findUnique({
       where: { id: validatedData.athleteId }
     });
@@ -29,27 +28,95 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Determine weight class
-    const weightClass = (validatedData.eventType === 'duo_traditional' || validatedData.eventType === 'duo_creative')
-      ? 'all' 
-      : getWeightClass(athlete.weight, validatedData.eventType, athlete.ageGroup, athlete.gender);
+    // Get event category details
+    const eventCategory = await prisma.eventCategory.findUnique({
+      where: { id: validatedData.eventCategoryId },
+      include: {
+        eventType: true
+      }
+    });
     
-    // Determine gender division for duo events
-    let genderDivision: string | null = null;
-    if ((validatedData.eventType === 'duo_traditional' || validatedData.eventType === 'duo_creative') 
-        && validatedData.teamPartnerId) {
+    if (!eventCategory) {
+      return NextResponse.json(
+        { error: '找不到項目分類' },
+        { status: 404 }
+      );
+    }
+    
+    // Check if category is enabled
+    if (!eventCategory.enabled || !eventCategory.eventType.enabled) {
+      return NextResponse.json(
+        { error: '此項目分類目前不開放報名' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate athlete meets category requirements
+    if (eventCategory.ageGroup !== athlete.ageGroup) {
+      return NextResponse.json(
+        { error: '選手年齡組別不符合此項目要求' },
+        { status: 400 }
+      );
+    }
+    
+    // Check gender requirements
+    if (eventCategory.gender !== 'mixed' && eventCategory.gender !== athlete.gender) {
+      return NextResponse.json(
+        { error: '選手性別不符合此項目要求' },
+        { status: 400 }
+      );
+    }
+    
+    // Check weight requirements
+    const athleteWeight = athlete.weight;
+    if (eventCategory.minWeight !== null && athleteWeight < eventCategory.minWeight) {
+      return NextResponse.json(
+        { error: `選手體重(${athleteWeight}kg)低於最低要求(${eventCategory.minWeight}kg)` },
+        { status: 400 }
+      );
+    }
+    if (eventCategory.maxWeight !== null && athleteWeight > eventCategory.maxWeight) {
+      return NextResponse.json(
+        { error: `選手體重(${athleteWeight}kg)超過最高限制(${eventCategory.maxWeight}kg)` },
+        { status: 400 }
+      );
+    }
+    
+    // For team events, validate partner
+    if (eventCategory.eventType.requiresTeam) {
+      if (!validatedData.teamPartnerId) {
+        return NextResponse.json(
+          { error: '此項目需要選擇隊友' },
+          { status: 400 }
+        );
+      }
+      
+      // Validate partner exists and meets same requirements
       const partner = await prisma.athlete.findUnique({
         where: { id: validatedData.teamPartnerId }
       });
       
-      if (partner) {
-        if (athlete.gender === 'M' && partner.gender === 'M') {
-          genderDivision = 'men';
-        } else if (athlete.gender === 'F' && partner.gender === 'F') {
-          genderDivision = 'women';
-        } else {
-          genderDivision = 'mixed';
+      if (!partner) {
+        return NextResponse.json(
+          { error: '找不到隊友資料' },
+          { status: 404 }
+        );
+      }
+      
+      // Check if partner already registered for this category
+      const partnerRegistration = await prisma.registration.findFirst({
+        where: {
+          athleteId: validatedData.teamPartnerId,
+          eventType: eventCategory.eventType.key,
+          eventDetail: eventCategory.id
         }
+      });
+      
+      if (partnerRegistration) {
+        return NextResponse.json(
+          { error: '隊友已經報名過此項目' },
+          { status: 400 }
+        );
       }
     }
     
@@ -57,8 +124,8 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.registration.findFirst({
       where: {
         athleteId: validatedData.athleteId,
-        eventType: validatedData.eventType,
-        eventDetail: validatedData.eventDetail
+        eventType: eventCategory.eventType.key,
+        eventDetail: eventCategory.id
       }
     });
     
@@ -73,11 +140,11 @@ export async function POST(request: NextRequest) {
     const registration = await prisma.registration.create({
       data: {
         athleteId: validatedData.athleteId,
-        eventType: validatedData.eventType,
-        eventDetail: validatedData.eventDetail,
+        eventType: eventCategory.eventType.key,
+        eventDetail: eventCategory.id,
         teamPartnerId: validatedData.teamPartnerId,
-        weightClass,
-        genderDivision
+        weightClass: eventCategory.weightClass,
+        genderDivision: eventCategory.gender
       }
     });
     

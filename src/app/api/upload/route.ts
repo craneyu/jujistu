@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     const allowedTypes = {
       photo: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
       coachCertificate: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
-      consentForm: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
+      consentForm: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'],
+      paymentProof: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf']
     };
 
     if (!allowedTypes[type as keyof typeof allowedTypes]?.includes(file.type)) {

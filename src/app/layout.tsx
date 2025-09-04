@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "2025年全國柔術錦標賽 - 報名系統",
-  description: "2025年全國柔術錦標賽線上報名系統",
+  title: "柔術錦標賽 - 報名系統",
+  description: "柔術錦標賽線上報名系統",
 };
 
 export default function RootLayout({

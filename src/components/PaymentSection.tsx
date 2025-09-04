@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DollarSign, FileText, Upload, Check, AlertCircle, CreditCard } from 'lucide-react';
 import { formatCurrency, getWeightClass } from '@/lib/utils';
+import { useCompetitionConfig } from '@/hooks/useCompetitionConfig';
 import FileUpload from './FileUpload';
 
 const paymentSchema = z.object({
@@ -28,6 +29,8 @@ export default function PaymentSection({ unitId }: Props) {
   const [paymentData, setPaymentData] = useState<any>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUploadInfo, setReceiptUploadInfo] = useState<{ filename: string; url: string } | null>(null);
+  const { config } = useCompetitionConfig();
 
   const form = useForm<PaymentForm>({
     resolver: zodResolver(paymentSchema)
@@ -69,7 +72,8 @@ export default function PaymentSection({ unitId }: Props) {
         body: JSON.stringify({
           ...data,
           unitId,
-          transferAmount: data.transferAmount
+          transferAmount: data.transferAmount,
+          proofImage: receiptUploadInfo?.url || null
         })
       });
 
@@ -82,6 +86,8 @@ export default function PaymentSection({ unitId }: Props) {
       fetchPaymentInfo();
       setShowPaymentForm(false);
       form.reset();
+      setReceiptFile(null);
+      setReceiptUploadInfo(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -198,7 +204,7 @@ export default function PaymentSection({ unitId }: Props) {
                     const ageGroup = reg.athlete.ageGroup;
                     
                     // Check if this is a duo event with a team
-                    if ((eventType === 'duo_traditional' || eventType === 'duo_creative') && reg.teamPartnerId) {
+                    if ((eventType === 'duo' || eventType === 'show') && reg.teamPartnerId) {
                       
                       // Create unique team identifier
                       const teamMembers = [reg.athleteId, reg.teamPartnerId].sort();
@@ -213,7 +219,7 @@ export default function PaymentSection({ unitId }: Props) {
                       
                       itemNumber++;
                       
-                      const eventName = eventType === 'duo_traditional' ? '傳統演武' : '創意演武';
+                      const eventName = eventType === 'duo' ? '傳統演武' : '創意演武';
                       
                       // Always show gender division for duo events
                       const genderDivisionName = 
@@ -258,11 +264,11 @@ export default function PaymentSection({ unitId }: Props) {
                         </tr>
                       );
                       
-                    } else if ((eventType === 'duo_traditional' || eventType === 'duo_creative') && !reg.teamPartnerId) {
+                    } else if ((eventType === 'duo' || eventType === 'show') && !reg.teamPartnerId) {
                       // Solo duo event (no team partner)
                       itemNumber++;
                       
-                      const eventName = eventType === 'duo_traditional' ? '傳統演武(單人)' : '創意演武(單人)';
+                      const eventName = eventType === 'duo' ? '傳統演武(單人)' : '創意演武(單人)';
                       const ageGroupName = 
                         ageGroup === 'child' ? '兒童組' :
                         ageGroup === 'junior' ? '青少年組' :
@@ -296,7 +302,7 @@ export default function PaymentSection({ unitId }: Props) {
                         </tr>
                       );
                       
-                    } else if (eventType !== 'duo_traditional' && eventType !== 'duo_creative') {
+                    } else if (eventType !== 'duo' && eventType !== 'show') {
                       // Individual events (not duo)
                       itemNumber++;
                       
@@ -365,22 +371,40 @@ export default function PaymentSection({ unitId }: Props) {
           匯款資訊
         </h3>
         <div className="space-y-2 text-blue-800">
-          <div>
-            <span className="font-medium">銀行：</span>
-            <span className="ml-2">第一銀行（代碼 007）</span>
-          </div>
-          <div>
-            <span className="font-medium">戶名：</span>
-            <span className="ml-2">中華民國柔術協會</span>
-          </div>
-          <div>
-            <span className="font-medium">帳號：</span>
-            <span className="ml-2">123-456-789012</span>
-          </div>
+          {config.bankName && (
+            <div>
+              <span className="font-medium">銀行：</span>
+              <span className="ml-2">{config.bankName}</span>
+            </div>
+          )}
+          {config.bankAccountName && (
+            <div>
+              <span className="font-medium">戶名：</span>
+              <span className="ml-2">{config.bankAccountName}</span>
+            </div>
+          )}
+          {config.bankAccount && (
+            <div>
+              <span className="font-medium">帳號：</span>
+              <span className="ml-2">{config.bankAccount}</span>
+            </div>
+          )}
+          {config.transferAmount && (
+            <div>
+              <span className="font-medium">報名費用：</span>
+              <span className="ml-2">{config.transferAmount}</span>
+            </div>
+          )}
           <div>
             <span className="font-medium">應繳金額：</span>
             <span className="ml-2 text-lg font-bold">{formatCurrency(totalAmount)}</span>
           </div>
+          {config.transferNotes && (
+            <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+              <span className="font-medium">備註：</span>
+              <div className="mt-1 text-sm whitespace-pre-wrap">{config.transferNotes}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -391,7 +415,7 @@ export default function PaymentSection({ unitId }: Props) {
           payment.paymentStatus === 'paid' ? 'bg-yellow-50 border-yellow-200' :
           'bg-gray-50 border-gray-200'
         }`}>
-          <h3 className="text-lg font-semibold mb-4">繳費狀態</h3>
+          <h3 className="text-lg font-semibold mb-4 text-gray-900">繳費狀態</h3>
           <div className="flex items-center gap-2">
             {payment.paymentStatus === 'confirmed' && (
               <>
@@ -438,7 +462,7 @@ export default function PaymentSection({ unitId }: Props) {
             </button>
           ) : (
             <form onSubmit={form.handleSubmit(handleSubmitPayment)} className="space-y-6">
-              <h3 className="text-lg font-semibold mb-4">填寫匯款資料</h3>
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">填寫匯款資料</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -514,12 +538,16 @@ export default function PaymentSection({ unitId }: Props) {
 
               <div>
                 <FileUpload
-                  onFileSelect={setReceiptFile}
+                  onFileSelect={(file: File, uploadInfo?: { filename: string; url: string }) => {
+                    setReceiptFile(file);
+                    setReceiptUploadInfo(uploadInfo || null);
+                  }}
                   accept="image/*,application/pdf"
                   maxSize={10 * 1024 * 1024}
                   label="匯款證明 (選填)"
                   description="可上傳匯款單據或截圖，支援圖片和PDF格式"
                   allowCamera={true}
+                  fileType="paymentProof"
                 />
               </div>
 

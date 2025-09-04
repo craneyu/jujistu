@@ -38,9 +38,10 @@ interface UnitInfo {
 
 interface Props {
   onUnitRegistered: (unitId: string, unitInfo: UnitInfo) => void;
+  disabled?: boolean;
 }
 
-export default function UnitRegistration({ onUnitRegistered }: Props) {
+export default function UnitRegistration({ onUnitRegistered, disabled = false }: Props) {
   const [isLogin, setIsLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +104,20 @@ export default function UnitRegistration({ onUnitRegistered }: Props) {
       setLoading(false);
     }
   };
+
+  if (disabled) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center py-8">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <Lock className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-amber-800 mb-2">資料已鎖定</h3>
+            <p className="text-amber-700">報名資料已鎖定，無法進行修改。您仍可查看現有資料。</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">

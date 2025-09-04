@@ -107,8 +107,8 @@ export default function RegistrationsManagement() {
       case 'fighting': return '對打組';
       case 'newaza': return '寢技組'; 
       case 'fullcontact': return '格鬥組';
-      case 'duo_traditional': return '雙人傳統演武';
-      case 'duo_creative': return '雙人創意演武';
+      case 'duo': return '雙人傳統演武';
+      case 'show': return '雙人創意演武';
       case 'nogi': return '無道袍組';
       default: return eventType;
     }
@@ -229,7 +229,7 @@ export default function RegistrationsManagement() {
   // 根據年齡組分組，然後再按量級分組（使用實際計算的量級）
   const groupAthletesByAgeGroupAndWeight = (registrations: Registration[]) => {
     const isDuoEvent = registrations.length > 0 && 
-      (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional');
+      (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo');
     
     if (isDuoEvent) {
       return groupDuoEventsByAgeGroup(registrations);
@@ -425,7 +425,7 @@ export default function RegistrationsManagement() {
                         </h3>
                         <p className="text-sm text-gray-600">
                           {(() => {
-                            const isDuoEvent = event.eventType === 'duo_creative' || event.eventType === 'duo_traditional';
+                            const isDuoEvent = event.eventType === 'show' || event.eventType === 'duo';
                             if (isDuoEvent) {
                               const teamCount = Math.ceil(event.count / 2);
                               return `${teamCount} 組報名`;
@@ -440,7 +440,7 @@ export default function RegistrationsManagement() {
                     <div className="flex items-center gap-3">
                       <span className="px-4 py-2 bg-blue-100 text-blue-700 font-semibold rounded-full">
                         {(() => {
-                          const isDuoEvent = event.eventType === 'duo_creative' || event.eventType === 'duo_traditional';
+                          const isDuoEvent = event.eventType === 'show' || event.eventType === 'duo';
                           if (isDuoEvent) {
                             const teamCount = Math.ceil(event.count / 2);
                             return `${teamCount} 組`;
@@ -485,7 +485,7 @@ export default function RegistrationsManagement() {
             {groupAthletesByAgeGroupAndWeight(selectedEventData!.registrations).map(([ageGroup, weightGroups], ageGroupIndex) => {
               let athleteCounter = ageGroupIndex * 1000; // 為每個年齡組設置不同的起始編號
               const isDuoEvent = selectedEventData!.registrations.length > 0 && 
-                (selectedEventData!.registrations[0].eventType === 'duo_creative' || selectedEventData!.registrations[0].eventType === 'duo_traditional');
+                (selectedEventData!.registrations[0].eventType === 'show' || selectedEventData!.registrations[0].eventType === 'duo');
               
               return (
                 <div key={ageGroup} className="space-y-4">
@@ -512,13 +512,13 @@ export default function RegistrationsManagement() {
                           <h3 className="font-semibold text-gray-900">
                             {(() => {
                               const isDuoEvent = registrations.length > 0 && 
-                                (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional');
+                                (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo');
                               return isDuoEvent ? weightClass : `${weightClass} 級`;
                             })()} 
                             <span className="ml-2 text-sm text-gray-600">
                               ({(() => {
                                 const isDuoEvent = registrations.length > 0 && 
-                                  (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional');
+                                  (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo');
                                 if (isDuoEvent) {
                                   // 雙人項目：計算組別數（人數除以2）
                                   const teamCount = Math.ceil(registrations.length / 2);
@@ -546,13 +546,13 @@ export default function RegistrationsManagement() {
                                   性別
                                 </th>
                                 {!(registrations.length > 0 && 
-                                  (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional')) && (
+                                  (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo')) && (
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                                     段帶
                                   </th>
                                 )}
                                 {!(registrations.length > 0 && 
-                                  (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional')) && (
+                                  (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo')) && (
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-900 uppercase tracking-wider">
                                     體重
                                   </th>
@@ -565,7 +565,7 @@ export default function RegistrationsManagement() {
                             <tbody className="bg-white divide-y divide-gray-200">
                               {(() => {
                                 const isDuoEvent = registrations.length > 0 && 
-                                  (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional');
+                                  (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo');
                                 
                                 if (isDuoEvent) {
                                   // 雙人項目：每兩個隊友顯示在同一行
@@ -671,7 +671,7 @@ export default function RegistrationsManagement() {
                                         </span>
                                       </td>
                                       {!(registrations.length > 0 && 
-                                        (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional')) && (
+                                        (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo')) && (
                                         <td className="px-6 py-4 whitespace-nowrap">
                                           <span className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full">
                                             {getBeltText(registration.athlete.belt)}
@@ -679,7 +679,7 @@ export default function RegistrationsManagement() {
                                         </td>
                                       )}
                                       {!(registrations.length > 0 && 
-                                        (registrations[0].eventType === 'duo_creative' || registrations[0].eventType === 'duo_traditional')) && (
+                                        (registrations[0].eventType === 'show' || registrations[0].eventType === 'duo')) && (
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                           {registration.athlete.weight} kg
                                         </td>

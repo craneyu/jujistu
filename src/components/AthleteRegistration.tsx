@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { User, Calendar, Phone, Mail, Weight, Award, Upload, AlertCircle, Edit2, Trash2 } from 'lucide-react';
+import { User, Calendar, Phone, Mail, Weight, Award, Upload, AlertCircle, Edit2, Trash2, Lock } from 'lucide-react';
 import { determineAgeGroup, determineMasterCategory } from '@/lib/utils';
 import { BELT_LEVELS } from '@/lib/types';
 import FileUpload from './FileUpload';
@@ -33,9 +33,10 @@ type AthleteForm = z.infer<typeof athleteSchema>;
 interface Props {
   unitId: string | null;
   onAthleteRegistered: () => void;
+  disabled?: boolean;
 }
 
-export default function AthleteRegistration({ unitId, onAthleteRegistered }: Props) {
+export default function AthleteRegistration({ unitId, onAthleteRegistered, disabled = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [athletes, setAthletes] = useState<any[]>([]);
@@ -264,6 +265,70 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered }: Pro
     );
   }
 
+  if (disabled) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center py-8">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <Lock className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-amber-800 mb-2">選手資料已鎖定</h3>
+            <p className="text-amber-700">繳費完成後，選手資料已鎖定，無法進行新增或修改。您仍可查看現有資料。</p>
+          </div>
+        </div>
+
+        {/* 顯示現有選手列表（僅查看） */}
+        {athletes.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              已註冊選手 ({athletes.length} 位)
+            </h2>
+            
+            <div className="grid gap-4">
+              {athletes.map((athlete, index) => (
+                <div key={athlete.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {athlete.photo ? (
+                        <img 
+                          src={`/uploads/${athlete.photo}`}
+                          alt={`${athlete.name}的照片`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <User className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <div className="text-lg font-semibold text-gray-900 mb-1">
+                        {index + 1}. {athlete.name}
+                      </div>
+                      <div className="flex gap-4 text-sm text-gray-600">
+                        <span>{athlete.gender === 'M' ? '男' : '女'}</span>
+                        <span>{athlete.weight}kg</span>
+                        <span>
+                          {athlete.belt === 'white' ? '白帶' :
+                           athlete.belt === 'blue' ? '藍帶' :
+                           athlete.belt === 'purple' ? '紫帶' :
+                           athlete.belt === 'brown' ? '棕帶' : '黑帶'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        出生日期：{new Date(athlete.birthDate).toLocaleDateString('zh-TW')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* 選手列表視圖 */}
@@ -455,13 +520,25 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered }: Pro
                   <p className="mt-1 text-sm text-red-600">{form.formState.errors.birthDate.message}</p>
                 )}
                 {ageInfo && (
-                  <p className="mt-1 text-sm text-gray-900 font-medium">
-                    組別：{ageInfo.ageGroup === 'adult' ? '成人組' : 
-                          ageInfo.ageGroup === 'youth' ? '青年組' :
-                          ageInfo.ageGroup === 'junior' ? '青少年組' :
-                          ageInfo.ageGroup === 'child' ? '兒童組' : '大師組'}
-                    {ageInfo.masterCategory && ` (${ageInfo.masterCategory})`}
-                  </p>
+                  <div className="mt-1 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-gray-900 font-medium mb-1">
+                      組別：{ageInfo.ageGroup === 'child' ? '兒童組 (未滿12歲)' : 
+                            ageInfo.ageGroup === 'junior' ? '青少年組 (12-14歲)' :
+                            ageInfo.ageGroup === 'youth' ? '青年組 (15-17歲)' :
+                            ageInfo.ageGroup === 'adult' ? '成人組 (18-34歲)' : '大師組 (35歲以上)'}
+                    </p>
+                    {ageInfo.masterCategory && (
+                      <p className="text-sm text-blue-700 font-semibold">
+                        大師組分類：{ageInfo.masterCategory} 
+                        {ageInfo.masterCategory === 'M1' && ' (35-39歲)'}
+                        {ageInfo.masterCategory === 'M2' && ' (40-44歲)'}
+                        {ageInfo.masterCategory === 'M3' && ' (45歲以上)'}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-600 mt-1">
+                      ※ 年齡計算基準日：2025年10月26日
+                    </p>
+                  </div>
                 )}
               </div>
 

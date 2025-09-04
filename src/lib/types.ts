@@ -33,7 +33,7 @@ export interface Athlete {
 export interface Registration {
   id: string;
   athleteId: string;
-  eventType: 'fighting' | 'newaza' | 'fullcontact' | 'duo_traditional' | 'duo_creative' | 'nogi';
+  eventType: 'fighting' | 'newaza' | 'fullcontact' | 'duo' | 'show' | 'nogi';
   eventDetail?: string;
   weightClass: string;
   status: 'pending' | 'confirmed' | 'cancelled';
@@ -57,8 +57,8 @@ export const EVENT_TYPES = {
   fighting: '對打',
   newaza: '寢技',
   fullcontact: '格鬥',
-  duo_traditional: '傳統演武',
-  duo_creative: '創意演武',
+  duo: '傳統演武',
+  show: '創意演武',
   nogi: '無道袍'
 } as const;
 

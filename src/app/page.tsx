@@ -8,6 +8,7 @@ import AthleteRegistration from '@/components/AthleteRegistration';
 import EventRegistration from '@/components/EventRegistration';
 import PaymentSection from '@/components/PaymentSection';
 import UnitProfile from '@/components/UnitProfile';
+import { usePaymentStatus } from '@/hooks/usePaymentStatus';
 
 interface UnitInfo {
   id: string;
@@ -18,10 +19,63 @@ interface UnitInfo {
   email: string;
 }
 
+interface CompetitionConfig {
+  competitionName: string;
+  competitionStartDate: string;
+  competitionEndDate: string;
+  competitionLocation: string;
+  registrationStartDate: string;
+  registrationStartTime: string;
+  registrationDeadline: string;
+  registrationDeadlineTime: string;
+  contactEmail: string;
+  contactPhone: string;
+  bankName: string;
+  bankAccount: string;
+  bankAccountName: string;
+  transferAmount: string;
+  transferNotes: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState('unit');
   const [currentUnitId, setCurrentUnitId] = useState<string | null>(null);
   const [currentUnit, setCurrentUnit] = useState<UnitInfo | null>(null);
+  const { paymentInfo, isRegistrationLocked } = usePaymentStatus(currentUnitId);
+  const [config, setConfig] = useState<CompetitionConfig>({
+    competitionName: '2025年全國柔術錦標賽',
+    competitionStartDate: '2025-10-26',
+    competitionEndDate: '2025-10-26',
+    competitionLocation: '',
+    registrationStartDate: '',
+    registrationStartTime: '',
+    registrationDeadline: '',
+    registrationDeadlineTime: '',
+    contactEmail: '',
+    contactPhone: '',
+    bankName: '',
+    bankAccount: '',
+    bankAccountName: '',
+    transferAmount: '',
+    transferNotes: ''
+  });
+
+  // Load competition config
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        if (response.ok) {
+          const data = await response.json();
+          setConfig(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch config:', error);
+      }
+    };
+    
+    fetchConfig();
+  }, []);
 
   // Load session and active tab from localStorage on mount
   useEffect(() => {
@@ -70,6 +124,42 @@ export default function Home() {
     setActiveTab('unit');
   };
 
+  // Check if registration is open
+  const getRegistrationStatus = () => {
+    const now = new Date();
+    
+    // If no registration dates are set, assume registration is open
+    if (!config.registrationStartDate && !config.registrationDeadline) {
+      return { status: 'open', message: '' };
+    }
+    
+    // Check if registration has started
+    if (config.registrationStartDate) {
+      const startDateTime = new Date(`${config.registrationStartDate}T${config.registrationStartTime || '00:00'}`);
+      if (now < startDateTime) {
+        return { 
+          status: 'not_started', 
+          message: `報名將於 ${startDateTime.toLocaleDateString('zh-TW')} ${config.registrationStartTime || '00:00'} 開始`
+        };
+      }
+    }
+    
+    // Check if registration has ended
+    if (config.registrationDeadline) {
+      const endDateTime = new Date(`${config.registrationDeadline}T${config.registrationDeadlineTime || '23:59'}`);
+      if (now > endDateTime) {
+        return { 
+          status: 'ended', 
+          message: `報名已於 ${endDateTime.toLocaleDateString('zh-TW')} ${config.registrationDeadlineTime || '23:59'} 截止`
+        };
+      }
+    }
+    
+    return { status: 'open', message: '' };
+  };
+
+  const registrationStatus = getRegistrationStatus();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg">
@@ -78,9 +168,41 @@ export default function Home() {
             <div>
               <div className="flex items-center gap-3">
                 <Trophy className="h-8 w-8" />
-                <h1 className="text-3xl font-bold">2025年全國柔術錦標賽 報名系統</h1>
+                <h1 className="text-3xl font-bold">{config.competitionName} 報名系統</h1>
               </div>
-              <p className="mt-2 text-blue-100">比賽日期：2025年10月26日</p>
+              <div className="mt-2 text-blue-100">
+                {config.competitionStartDate && (
+                  <p>
+                    比賽日期：
+                    {config.competitionStartDate === config.competitionEndDate 
+                      ? new Date(config.competitionStartDate).toLocaleDateString('zh-TW')
+                      : `${new Date(config.competitionStartDate).toLocaleDateString('zh-TW')} - ${new Date(config.competitionEndDate).toLocaleDateString('zh-TW')}`
+                    }
+                  </p>
+                )}
+                {config.competitionLocation && (
+                  <p className="mt-1">比賽地點：{config.competitionLocation}</p>
+                )}
+                {(config.registrationStartDate || config.registrationDeadline) && (
+                  <div className="mt-2 text-sm">
+                    {config.registrationStartDate && config.registrationDeadline ? (
+                      <p>
+                        報名期間：
+                        {new Date(config.registrationStartDate).toLocaleDateString('zh-TW')} {config.registrationStartTime || '00:00'} - 
+                        {new Date(config.registrationDeadline).toLocaleDateString('zh-TW')} {config.registrationDeadlineTime || '23:59'}
+                      </p>
+                    ) : config.registrationStartDate ? (
+                      <p>
+                        報名開始：{new Date(config.registrationStartDate).toLocaleDateString('zh-TW')} {config.registrationStartTime || '00:00'}
+                      </p>
+                    ) : config.registrationDeadline ? (
+                      <p>
+                        報名截止：{new Date(config.registrationDeadline).toLocaleDateString('zh-TW')} {config.registrationDeadlineTime || '23:59'}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             </div>
             {currentUnitId && (
               <button
@@ -96,8 +218,38 @@ export default function Home() {
       </header>
 
       <main className="container mx-auto p-6">
+        {/* 報名狀態提示 */}
+        {registrationStatus.status !== 'open' && (
+          <div className={`mb-6 p-4 border-l-4 rounded-r-lg ${
+            registrationStatus.status === 'not_started' 
+              ? 'bg-blue-50 border-blue-400' 
+              : 'bg-red-50 border-red-400'
+          }`}>
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className={`h-5 w-5 ${
+                  registrationStatus.status === 'not_started' 
+                    ? 'text-blue-400' 
+                    : 'text-red-400'
+                }`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className={`text-sm font-semibold ${
+                  registrationStatus.status === 'not_started' 
+                    ? 'text-blue-800' 
+                    : 'text-red-800'
+                }`}>
+                  {registrationStatus.message}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 進度提示 */}
-        {!currentUnitId && (
+        {!currentUnitId && registrationStatus.status === 'open' && (
           <div className="mb-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -142,15 +294,22 @@ export default function Home() {
 
         <div className="bg-white rounded-xl shadow-xl overflow-hidden">
           <Tabs value={activeTab} onValueChange={(value) => {
-            // 只有在有單位ID或選擇單位註冊頁時才允許切換
-            if (value === 'unit' || currentUnitId) {
+            // 只有在有單位ID或選擇單位註冊頁時才允許切換，且報名期間開放
+            if ((value === 'unit' || currentUnitId) && registrationStatus.status === 'open') {
               setActiveTab(value);
             }
           }} className="w-full">
             <TabsList className="flex border-b bg-gray-50">
               <TabsTrigger 
                 value="unit" 
-                className="flex-1 px-6 py-4 text-center text-gray-700 font-medium hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 transition-all"
+                disabled={registrationStatus.status !== 'open'}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                  registrationStatus.status !== 'open'
+                    ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60'
+                    : isRegistrationLocked
+                      ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-amber-50 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 data-[state=active]:text-amber-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
+                }`}
               >
                 <div className="flex items-center justify-center gap-2">
                   <Users className="h-5 w-5" />
@@ -159,11 +318,13 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger 
                 value="athlete" 
-                disabled={!currentUnitId}
+                disabled={!currentUnitId || registrationStatus.status !== 'open'}
                 className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
-                  !currentUnitId 
+                  !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
+                    : isRegistrationLocked
+                      ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-amber-50 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 data-[state=active]:text-amber-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
@@ -173,11 +334,13 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger 
                 value="event" 
-                disabled={!currentUnitId}
+                disabled={!currentUnitId || registrationStatus.status !== 'open'}
                 className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
-                  !currentUnitId 
+                  !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
-                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
+                    : isRegistrationLocked
+                      ? 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-amber-50 data-[state=active]:border-b-2 data-[state=active]:border-amber-500 data-[state=active]:text-amber-700'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
@@ -187,9 +350,9 @@ export default function Home() {
               </TabsTrigger>
               <TabsTrigger 
                 value="payment" 
-                disabled={!currentUnitId}
+                disabled={!currentUnitId || registrationStatus.status !== 'open'}
                 className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
-                  !currentUnitId 
+                  !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
@@ -201,6 +364,20 @@ export default function Home() {
               </TabsTrigger>
             </TabsList>
 
+            {/* Payment Status Lock Notice */}
+            {isRegistrationLocked && (
+              <div className="mx-8 mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <FileCheck className="h-5 w-5 text-amber-600" />
+                  <span className="font-medium text-amber-800">
+                    {paymentInfo?.paymentStatus === 'paid' && '匯款資料已提交，待確認中。'}
+                    {paymentInfo?.paymentStatus === 'confirmed' && '繳費已確認完成。'}
+                    報名資料已鎖定，您仍可查看已註冊的資料，但無法新增或修改。
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="p-8">
               <TabsContent value="unit">
                 <UnitRegistration 
@@ -209,6 +386,7 @@ export default function Home() {
                     setCurrentUnit(unitInfo);
                     setActiveTab('athlete');
                   }}
+                  disabled={isRegistrationLocked}
                 />
               </TabsContent>
 
@@ -216,6 +394,7 @@ export default function Home() {
                 <AthleteRegistration 
                   unitId={currentUnitId}
                   onAthleteRegistered={() => setActiveTab('event')}
+                  disabled={isRegistrationLocked}
                 />
               </TabsContent>
 
@@ -223,6 +402,7 @@ export default function Home() {
                 <EventRegistration 
                   unitId={currentUnitId}
                   onEventsRegistered={() => setActiveTab('payment')}
+                  disabled={isRegistrationLocked}
                 />
               </TabsContent>
 
@@ -286,8 +466,18 @@ export default function Home() {
 
       <footer className="bg-gray-800 text-white p-6 mt-12">
         <div className="container mx-auto text-center">
-          <p>&copy; 2025 全國柔術錦標賽. All rights reserved.</p>
-          <p className="mt-2 text-gray-300 font-medium">技術支援：jujitsu@example.com</p>
+          <p>&copy; 2025 {config.competitionName.replace('2025年', '')}. All rights reserved.</p>
+          <div className="mt-2 text-gray-300 font-medium">
+            {config.contactEmail && (
+              <p>聯絡信箱：{config.contactEmail}</p>
+            )}
+            {config.contactPhone && (
+              <p>聯絡電話：{config.contactPhone}</p>
+            )}
+            {!config.contactEmail && !config.contactPhone && (
+              <p>技術支援：jujitsu@example.com</p>
+            )}
+          </div>
         </div>
       </footer>
     </div>

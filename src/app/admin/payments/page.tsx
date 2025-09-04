@@ -12,7 +12,9 @@ import {
   Download,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Image,
+  ExternalLink
 } from 'lucide-react';
 
 interface Payment {
@@ -29,6 +31,7 @@ interface Payment {
   accountLastFive?: string;
   transferDate?: string;
   transferAmount?: number;
+  proofImage?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -73,13 +76,16 @@ export default function PaymentsManagement() {
   const updatePaymentStatus = async (paymentId: string, status: string) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/admin/payments/${paymentId}`, {
+      const response = await fetch('/api/admin/payments', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ 
+          paymentId, 
+          paymentStatus: status 
+        })
       });
 
       if (response.ok) {
@@ -259,6 +265,18 @@ export default function PaymentsManagement() {
                           <div>後五碼: {payment.accountLastFive}</div>
                           {payment.transferDate && (
                             <div>日期: {new Date(payment.transferDate).toLocaleDateString('zh-TW')}</div>
+                          )}
+                          {payment.proofImage && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => window.open(payment.proofImage, '_blank')}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                              >
+                                <Image className="h-3 w-3" />
+                                查看匯款證明
+                                <ExternalLink className="h-3 w-3" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}

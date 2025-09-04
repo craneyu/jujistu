@@ -8,7 +8,14 @@ const paymentSchema = z.object({
   bankName: z.string().optional(),
   accountLastFive: z.string().optional(),
   transferDate: z.string().optional().transform(str => str ? new Date(str) : undefined),
-  transferAmount: z.number().optional(),
+  transferAmount: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') return parseFloat(val);
+      if (typeof val === 'number') return val;
+      return undefined;
+    },
+    z.number().optional()
+  ),
   proofImage: z.string().optional(),
   notes: z.string().optional()
 });
@@ -16,9 +23,11 @@ const paymentSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log('Payment API received data:', body);
     
     // Validate input
     const validatedData = paymentSchema.parse(body);
+    console.log('Validated payment data:', validatedData);
     
     // Calculate total amount based on registrations
     const registrations = await prisma.registration.findMany({
@@ -27,6 +36,9 @@ export async function POST(request: NextRequest) {
           unitId: validatedData.unitId
         },
         status: 'pending'
+      },
+      include: {
+        athlete: true
       }
     });
     
@@ -68,15 +80,16 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('Validation error:', error.errors);
       return NextResponse.json(
-        { error: error.errors[0].message },
+        { error: `驗證錯誤: ${error.errors[0].message}` },
         { status: 400 }
       );
     }
     
     console.error('Payment error:', error);
     return NextResponse.json(
-      { error: '繳費資料處理失敗' },
+      { error: `繳費資料處理失敗: ${error instanceof Error ? error.message : '未知錯誤'}` },
       { status: 500 }
     );
   }

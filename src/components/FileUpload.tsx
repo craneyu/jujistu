@@ -11,7 +11,7 @@ interface Props {
   label: string;
   description?: string;
   allowCamera?: boolean;
-  fileType: 'photo' | 'coachCertificate' | 'consentForm';
+  fileType: 'photo' | 'coachCertificate' | 'consentForm' | 'paymentProof';
 }
 
 export default function FileUpload({ 

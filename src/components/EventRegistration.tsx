@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Trophy, Check, X, AlertCircle, Users } from 'lucide-react';
+import { Trophy, Check, X, AlertCircle, Users, Lock } from 'lucide-react';
 import { EVENT_TYPES } from '@/lib/types';
 
 interface Props {
   unitId: string | null;
   onEventsRegistered: () => void;
+  disabled?: boolean;
 }
 
 interface Athlete {
@@ -18,7 +19,7 @@ interface Athlete {
   registrations: any[];
 }
 
-export default function EventRegistration({ unitId, onEventsRegistered }: Props) {
+export default function EventRegistration({ unitId, onEventsRegistered, disabled = false }: Props) {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,12 +77,12 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
     
     // 傳統演武 - 12歲以上
     if (athlete.ageGroup !== 'child') {
-      events.push('duo_traditional');
+      events.push('duo');
     }
     
     // 創意演武 - 12歲以上
     if (athlete.ageGroup !== 'child') {
-      events.push('duo_creative');
+      events.push('show');
     }
     
     return events;
@@ -98,7 +99,7 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
 
   const handleRegisterEvent = async (athleteId: string, eventType: string) => {
     // 如果是演武項目，需要選擇隊友
-    if (eventType === 'duo_traditional' || eventType === 'duo_creative') {
+    if (eventType === 'duo' || eventType === 'show') {
       setCurrentTeamEvent({ athleteId, eventType });
       setShowTeamModal(true);
       return;
@@ -223,6 +224,78 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
     );
   }
 
+  if (disabled) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center py-8">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <Lock className="h-12 w-12 text-amber-600 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-amber-800 mb-2">項目報名已鎖定</h3>
+            <p className="text-amber-700">繳費完成後，項目報名已鎖定，無法進行修改。您仍可查看現有報名資料。</p>
+          </div>
+        </div>
+
+        {/* 顯示現有報名資料（僅查看） */}
+        <div className="space-y-6">
+          {athletes.map(athlete => (
+            <div key={athlete.id} className="bg-white border border-gray-200 rounded-lg p-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {athlete.name} 
+                  <span className="ml-2 text-sm font-medium text-gray-900">
+                    ({athlete.gender === 'M' ? '男' : '女'} | {athlete.weight}kg | 
+                    {athlete.ageGroup === 'adult' ? '成人組' : 
+                     athlete.ageGroup === 'youth' ? '青年組' :
+                     athlete.ageGroup === 'junior' ? '青少年組' :
+                     athlete.ageGroup === 'child' ? '兒童組' : '大師組'})
+                  </span>
+                </h3>
+              </div>
+
+              {athlete.registrations.length > 0 ? (
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700 font-medium mb-3">
+                    已報名 {athlete.registrations.length} 項目：
+                  </p>
+                  <div className="grid gap-3">
+                    {athlete.registrations.map((reg: any) => {
+                      const eventName = EVENT_TYPES[reg.eventType as keyof typeof EVENT_TYPES];
+                      const isTeamEvent = reg.eventType === 'duo' || reg.eventType === 'show';
+                      const teammate = isTeamEvent && reg.teamPartnerId ? 
+                        athletes.find(a => a.id === reg.teamPartnerId) : null;
+                      
+                      return (
+                        <div key={reg.id} className="flex items-center bg-white p-3 rounded-lg border">
+                          {isTeamEvent ? (
+                            <Users className="h-5 w-5 text-blue-600 mr-3" />
+                          ) : (
+                            <Trophy className="h-5 w-5 text-blue-600 mr-3" />
+                          )}
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900">{eventName}</div>
+                            {teammate && (
+                              <div className="text-xs text-gray-600">
+                                隊友: {teammate.name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">此選手尚未報名任何項目</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
@@ -282,7 +355,7 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
                             : 'bg-white border-gray-300 hover:border-blue-500'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {(key === 'duo_traditional' || key === 'duo_creative') ? (
+                        {(key === 'duo' || key === 'show') ? (
                           <Users className={`h-5 w-5 mx-auto mb-1 ${
                             isRegistered ? 'text-green-600' : 'text-gray-700'
                           }`} />
@@ -292,7 +365,7 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
                           }`} />
                         )}
                         <div className="text-sm font-medium text-gray-900">{label}</div>
-                        {(key === 'duo_traditional' || key === 'duo_creative') && (
+                        {(key === 'duo' || key === 'show') && (
                           <div className="text-xs text-gray-600 mt-1">(2人組隊)</div>
                         )}
                         {isRegistered && (
@@ -312,7 +385,7 @@ export default function EventRegistration({ unitId, onEventsRegistered }: Props)
                   <div className="space-y-1">
                     {athlete.registrations.map((reg: any) => {
                       const eventName = EVENT_TYPES[reg.eventType as keyof typeof EVENT_TYPES];
-                      const isTeamEvent = reg.eventType === 'duo_traditional' || reg.eventType === 'duo_creative';
+                      const isTeamEvent = reg.eventType === 'duo' || reg.eventType === 'show';
                       const teammate = isTeamEvent && reg.teamPartnerId ? 
                         athletes.find(a => a.id === reg.teamPartnerId) : null;
                       

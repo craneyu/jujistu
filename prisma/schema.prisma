@@ -116,19 +116,38 @@ model Payment {
   notes           String?             // 備註
 }
 
-// 競賽項目設定 (系統設定)
+// 競賽項目類型設定
+model EventType {
+  id              String        @id @default(cuid())
+  key             String        @unique        // fighting/newaza/fullcontact/duo_traditional/duo_creative/nogi
+  name            String                       // 顯示名稱 (如：對打)
+  description     String?                      // 項目描述
+  requiresTeam    Boolean       @default(false) // 是否需要組隊
+  enabled         Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // 關聯
+  categories      EventCategory[]
+}
+
+// 競賽項目分組設定 (各組量級)
 model EventCategory {
   id           String       @id @default(cuid())
-  eventType    String       // fighting/newaza/fullcontact/duo/nogi
-  ageGroup     String       // adult/youth/junior/child/master
-  gender       String?      // M/F/mixed
-  weightClass  String       // 體重級別代碼
-  minWeight    Float?       // 最小體重
-  maxWeight    Float?       // 最大體重
-  description  String       // 級別描述
-  enabled      Boolean      @default(true)
+  eventTypeId  String       // 所屬項目類型
+  eventType    EventType    @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
   
-  @@unique([eventType, ageGroup, gender, weightClass])
+  ageGroup     String       // adult/youth/junior/child/master
+  gender       String       // M/F/mixed
+  weightClass  String       // 體重級別代碼 (如：light/middle/heavy)
+  minWeight    Float?       // 最小體重 (kg)
+  maxWeight    Float?       // 最大體重 (kg) null表示無上限
+  description  String       // 級別描述 (如：輕量級 55kg以下)
+  enabled      Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  @@unique([eventTypeId, ageGroup, gender, weightClass])
 }
 
 // 系統設定

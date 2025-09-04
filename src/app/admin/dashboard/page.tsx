@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useCompetitionConfig } from '@/hooks/useCompetitionConfig';
 import { 
   Users, 
   Trophy, 
@@ -12,7 +13,8 @@ import {
   UserCheck,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Settings
 } from 'lucide-react';
 
 interface DashboardStats {
@@ -28,6 +30,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { config } = useCompetitionConfig();
   const router = useRouter();
 
   useEffect(() => {
@@ -103,7 +106,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">管理者後台</h1>
-              <p className="text-gray-600">2025年全國柔術錦標賽報名管理</p>
+              <p className="text-gray-600">{config.competitionName}報名管理</p>
             </div>
             <button
               onClick={handleLogout}
@@ -184,7 +187,7 @@ export default function AdminDashboard() {
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">快速操作</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <button 
               onClick={() => router.push('/admin/registrations')}
               className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -215,6 +218,22 @@ export default function AdminDashboard() {
             >
               <UserCheck className="h-5 w-5 text-orange-600" />
               <span className="text-gray-900 font-medium">管理選手</span>
+            </button>
+
+            <button 
+              onClick={() => router.push('/admin/config')}
+              className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Settings className="h-5 w-5 text-indigo-600" />
+              <span className="text-gray-900 font-medium">賽會設定</span>
+            </button>
+
+            <button 
+              onClick={() => router.push('/admin/events')}
+              className="flex items-center justify-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Trophy className="h-5 w-5 text-red-600" />
+              <span className="text-gray-900 font-medium">項目管理</span>
             </button>
           </div>
         </div>

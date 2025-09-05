@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Save, Settings, Calendar, Trophy, ArrowLeft, CreditCard, Upload, X, Image, Mail } from 'lucide-react';
+import { Save, Settings, Calendar, Trophy, ArrowLeft, CreditCard, Upload, X, Image, Mail, Lock } from 'lucide-react';
 
 export default function CompetitionConfigPage() {
   const [config, setConfig] = useState({
@@ -32,7 +32,10 @@ export default function CompetitionConfigPage() {
     smtpUser: '',
     smtpPassword: '',
     smtpFromName: '',
-    smtpFromEmail: ''
+    smtpFromEmail: '',
+    googleClientId: '',
+    googleClientSecret: '',
+    googleAuthEnabled: 'false'
   });
   
   const [loading, setLoading] = useState(true);
@@ -89,7 +92,10 @@ export default function CompetitionConfigPage() {
           smtpUser: data.smtpUser || '',
           smtpPassword: data.smtpPassword || '',
           smtpFromName: data.smtpFromName || '',
-          smtpFromEmail: data.smtpFromEmail || ''
+          smtpFromEmail: data.smtpFromEmail || '',
+          googleClientId: data.googleClientId || '',
+          googleClientSecret: data.googleClientSecret || '',
+          googleAuthEnabled: data.googleAuthEnabled || 'false'
         });
       } else if (response.status === 401) {
         localStorage.removeItem('adminToken');
@@ -163,7 +169,10 @@ export default function CompetitionConfigPage() {
       smtpUser: 'SMTP 使用者名稱',
       smtpPassword: 'SMTP 密碼',
       smtpFromName: '寄件人名稱',
-      smtpFromEmail: '寄件人信箱'
+      smtpFromEmail: '寄件人信箱',
+      googleClientId: 'Google Client ID',
+      googleClientSecret: 'Google Client Secret',
+      googleAuthEnabled: '啟用Google OAuth2登入'
     };
     return descriptions[key] || '';
   };
@@ -349,6 +358,17 @@ export default function CompetitionConfigPage() {
               >
                 <Mail className="w-4 h-4 inline mr-2" />
                 郵件設定
+              </button>
+              <button
+                onClick={() => setActiveTab('oauth')}
+                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'oauth'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Lock className="w-4 h-4 inline mr-2" />
+                OAuth2設定
               </button>
             </nav>
           </div>
@@ -731,6 +751,70 @@ export default function CompetitionConfigPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-gray-900"
                       placeholder="noreply@competition.com"
                     />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* OAuth2 Tab */}
+            {activeTab === 'oauth' && (
+              <div>
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Google OAuth2 設定</h3>
+                  <p className="text-gray-600">設定Google OAuth2登入功能，讓使用者可以使用Google賬號登入。</p>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <label className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={config.googleAuthEnabled === 'true'}
+                        onChange={(e) => handleInputChange('googleAuthEnabled', e.target.checked ? 'true' : 'false')}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <span className="text-sm font-bold text-gray-900">啟用Google OAuth2登入</span>
+                    </label>
+                    <p className="text-sm text-gray-500 mt-1 ml-7">啟用後，使用者可以使用Google賬號登入和註冊</p>
+                  </div>
+                  
+                  <div className={`space-y-6 ${config.googleAuthEnabled !== 'true' ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-2">Google Client ID</label>
+                      <input
+                        type="text"
+                        value={config.googleClientId}
+                        onChange={(e) => handleInputChange('googleClientId', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm text-gray-900"
+                        placeholder="例：123456789012-abcdef1234567890.apps.googleusercontent.com"
+                        disabled={config.googleAuthEnabled !== 'true'}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">從 Google Cloud Console 取得的 Client ID</p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-bold text-gray-900 mb-2">Google Client Secret</label>
+                      <input
+                        type="password"
+                        value={config.googleClientSecret}
+                        onChange={(e) => handleInputChange('googleClientSecret', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm text-gray-900"
+                        placeholder="例：GOCSPX-abcdefghijklmnopqrstuvwxyz123456"
+                        disabled={config.googleAuthEnabled !== 'true'}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">從 Google Cloud Console 取得的 Client Secret</p>
+                    </div>
+                    
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-blue-800 mb-2">設定說明</h4>
+                      <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                        <li>前往 <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></li>
+                        <li>建立或選擇專案</li>
+                        <li>啟用 Google+ API</li>
+                        <li>建立 OAuth 2.0 用戶端 ID</li>
+                        <li>將 <code className="bg-blue-100 px-1 rounded">http://localhost:3000/api/auth/google/callback</code> 加入授權重新導向 URI</li>
+                        <li>複製 Client ID 和 Client Secret 到上方欄位</li>
+                      </ol>
+                    </div>
                   </div>
                 </div>
               </div>

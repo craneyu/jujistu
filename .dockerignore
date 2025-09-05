@@ -1,0 +1,39 @@
+# 依賴項
+node_modules
+npm-debug.log*
+
+# 開發檔案
+.next
+.env*
+.git
+.gitignore
+README.md
+
+# 測試
+coverage
+*.test.js
+
+# 系統檔案
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# 臨時檔案
+*.tmp
+*.temp
+
+# 日誌
+logs
+*.log
+
+# SQLite 資料庫 (生產環境將使用 PostgreSQL)
+*.db
+*.sqlite
+prisma/dev.db
+
+# 上傳檔案 (將移至 Azure Blob Storage)
+public/uploads/*
+!public/uploads/.gitkeep

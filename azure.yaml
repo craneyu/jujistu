@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: jujitsu-registration
+metadata:
+  template: jujitsu-registration@0.0.1-beta
+
+services:
+  web:
+    project: .
+    language: ts
+    host: containerapp
+
+hooks:
+  predeploy:
+    windows:
+      shell: pwsh
+      run: |
+        echo "Generating Prisma client..."
+        npm run prisma:generate
+        echo "Building application..."
+        npm run build
+    posix:
+      shell: sh
+      run: |
+        echo "Generating Prisma client..."
+        npm run prisma:generate
+        echo "Building application..."
+        npm run build
+
+  postdeploy:
+    windows:
+      shell: pwsh
+      run: |
+        echo "Running database migrations..."
+        npm run prisma:deploy
+    posix:
+      shell: sh
+      run: |
+        echo "Running database migrations..."
+        npm run prisma:deploy

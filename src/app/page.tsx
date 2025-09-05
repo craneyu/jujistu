@@ -94,6 +94,25 @@ export default function Home() {
     const savedSession = localStorage.getItem('unitSession');
     const savedTab = localStorage.getItem('activeTab');
     
+    // 檢查是否為Google OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const authStatus = urlParams.get('auth');
+    const sessionData = urlParams.get('session');
+    
+    if (authStatus === 'success' && sessionData) {
+      try {
+        const session = JSON.parse(decodeURIComponent(sessionData));
+        setCurrentUnitId(session.unitId);
+        setCurrentUnit(session.unit);
+        setActiveTab('athlete');
+        // 清除URL參數
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      } catch (error) {
+        console.error('Failed to parse Google OAuth session:', error);
+      }
+    }
+    
     if (savedSession) {
       try {
         const session = JSON.parse(savedSession);

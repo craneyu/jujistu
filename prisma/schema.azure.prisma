@@ -1,0 +1,172 @@
+// This is your Prisma schema file for Azure PostgreSQL deployment
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 報名單位
+model RegistrationUnit {
+  id           String       @id @default(cuid())
+  name         String       // 單位名稱
+  address      String?      // 地址
+  contactName  String       // 聯絡人
+  phone        String       // 聯絡電話
+  email        String       @unique // 電子郵件
+  password     String       // 密碼 (hashed)
+  resetToken   String?      // 密碼重設權杖
+  resetTokenExpiry DateTime? // 權杖到期時間
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  athletes     Athlete[]    // 該單位的選手
+  payments     Payment[]    // 該單位的繳費記錄
+}
+
+// 選手
+model Athlete {
+  id                 String              @id @default(cuid())
+  unitId             String              // 所屬單位
+  unit               RegistrationUnit    @relation(fields: [unitId], references: [id])
+  
+  // 基本資料
+  name               String              // 姓名
+  nationalId         String              // 身份證字號
+  gender             String              // 性別 (M/F)
+  birthDate          DateTime            // 出生年月日
+  phone              String?             // 聯絡電話
+  email              String?             // 電子郵件
+  
+  // 緊急聯絡人資訊
+  emergencyContactName String            // 緊急聯絡人姓名
+  emergencyContactPhone String           // 緊急聯絡人電話
+  emergencyContactRelation String        // 與緊急聯絡人之關係
+  
+  // 競賽相關
+  ageGroup           String              // 報名組別 (adult/youth/junior/child/master)
+  weight             Float?              // 體重
+  beltRank           String              // 帶級
+  academyName        String?             // 道館名稱
+  coachName          String?             // 教練姓名
+  
+  // 檔案上傳
+  photoUrl           String?             // 選手照片
+  consentFormUrl     String?             // 家長同意書 (未滿18歲需要)
+  coachCertificateUrl String?           // 教練證照 (如果是教練)
+  
+  // 狀態
+  registrationStatus String @default("pending") // pending, approved, rejected
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  // 關聯
+  eventRegistrations EventRegistration[]
+  
+  @@unique([unitId, nationalId]) // 同一單位內身份證字號不能重複
+}
+
+// 賽事
+model Event {
+  id          String              @id @default(cuid())
+  name        String              // 賽事名稱
+  description String?             // 賽事描述
+  date        DateTime            // 賽事日期
+  location    String              // 賽事地點
+  
+  // 報名相關
+  registrationStartDate DateTime  // 報名開始日期
+  registrationEndDate   DateTime  // 報名結束日期
+  earlyBirdEndDate      DateTime? // 早鳥優惠截止日期
+  
+  // 費用設定
+  registrationFee       Int       // 報名費用
+  earlyBirdDiscount     Int?      // 早鳥優惠折扣
+  
+  // 組別設定
+  allowedAgeGroups      String    // JSON array of allowed age groups
+  allowedBeltRanks      String    // JSON array of allowed belt ranks
+  
+  // 狀態
+  isActive              Boolean @default(true)
+  maxParticipants       Int?    // 最大參與人數
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // 關聯
+  registrations         EventRegistration[]
+}
+
+// 賽事報名
+model EventRegistration {
+  id        String   @id @default(cuid())
+  athleteId String   // 選手ID
+  eventId   String   // 賽事ID
+  
+  athlete   Athlete  @relation(fields: [athleteId], references: [id])
+  event     Event    @relation(fields: [eventId], references: [id])
+  
+  // 報名狀態
+  status    String   @default("pending") // pending, confirmed, cancelled
+  
+  // 報名資料
+  weightDivision String? // 量級組別
+  notes          String? // 備註
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([athleteId, eventId]) // 同一選手不能重複報名同一賽事
+}
+
+// 繳費記錄
+model Payment {
+  id             String           @id @default(cuid())
+  unitId         String           // 單位ID
+  unit           RegistrationUnit @relation(fields: [unitId], references: [id])
+  
+  // 繳費資訊
+  amount         Int              // 金額
+  paymentMethod  String           // 繳費方式 (bank_transfer, credit_card)
+  paymentProofUrl String?         // 繳費證明檔案
+  
+  // 狀態
+  status         String @default("pending") // pending, verified, rejected
+  
+  // 時間
+  paidAt         DateTime?        // 繳費時間
+  verifiedAt     DateTime?        // 驗證時間
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // 關聯的賽事
+  events         String?          // JSON array of event IDs
+}
+
+// 系統設定
+model Config {
+  id    String @id @default(cuid())
+  key   String @unique // 設定鍵
+  value String         // 設定值
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 管理員
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique // 管理員帳號
+  password  String   // 密碼 (hashed)
+  email     String   @unique // 電子郵件
+  role      String   @default("admin") // 角色
+  isActive  Boolean  @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     
     // Calculate age group and master category
     const ageGroup = determineAgeGroup(validatedData.birthDate);
-    const masterCategory = determineMasterCategory(validatedData.birthDate);
+    const masterCategory = await determineMasterCategory(validatedData.birthDate);
     
     // Create athlete
     const athlete = await prisma.athlete.create({
@@ -116,7 +116,7 @@ export async function PUT(request: NextRequest) {
     
     // Calculate age group and master category
     const ageGroup = determineAgeGroup(validatedData.birthDate);
-    const masterCategory = determineMasterCategory(validatedData.birthDate);
+    const masterCategory = await determineMasterCategory(validatedData.birthDate);
     
     // Update athlete
     const athlete = await prisma.athlete.update({

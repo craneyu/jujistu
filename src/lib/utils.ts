@@ -14,13 +14,43 @@ export function determineAgeGroup(birthDate: Date): string {
   return 'master';  // 35歲以上
 }
 
-export function determineMasterCategory(birthDate: Date): string | null {
+export async function determineMasterCategory(birthDate: Date): Promise<string | null> {
   const age = calculateAge(birthDate);
   
-  if (age < 35) return null;
-  if (age >= 35 && age <= 39) return 'M1';
-  if (age >= 40 && age <= 44) return 'M2';
-  if (age >= 45) return 'M3';
+  // 動態載入年齡配置
+  const { getAgeRanges } = await import('./ageConfig');
+  const ageRanges = await getAgeRanges();
+  
+  if (age < ageRanges.m1MinAge) return null;
+  if (age >= ageRanges.m1MinAge && age <= ageRanges.m1MaxAge) return 'M1';
+  if (age >= ageRanges.m2MinAge && age <= ageRanges.m2MaxAge) return 'M2';
+  if (age >= ageRanges.m3MinAge) return 'M3';
+  return null;
+}
+
+// 同步版本，用於不支援 async 的場合
+export function determineMasterCategorySync(birthDate: Date, ageRanges?: {
+  m1MinAge: number;
+  m1MaxAge: number;
+  m2MinAge: number;
+  m2MaxAge: number;
+  m3MinAge: number;
+}): string | null {
+  const age = calculateAge(birthDate);
+  
+  // 如果沒有提供年齡範圍，使用預設值
+  const ranges = ageRanges || {
+    m1MinAge: 35,
+    m1MaxAge: 39,
+    m2MinAge: 40,
+    m2MaxAge: 44,
+    m3MinAge: 45,
+  };
+  
+  if (age < ranges.m1MinAge) return null;
+  if (age >= ranges.m1MinAge && age <= ranges.m1MaxAge) return 'M1';
+  if (age >= ranges.m2MinAge && age <= ranges.m2MaxAge) return 'M2';
+  if (age >= ranges.m3MinAge) return 'M3';
   return null;
 }
 

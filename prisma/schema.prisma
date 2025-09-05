@@ -19,6 +19,8 @@ model RegistrationUnit {
   phone        String       // 聯絡電話
   email        String       @unique // 電子郵件
   password     String       // 密碼 (hashed)
+  resetToken   String?      // 密碼重設權杖
+  resetTokenExpiry DateTime? // 權杖到期時間
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   athletes     Athlete[]    // 該單位的選手

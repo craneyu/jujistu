@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Building2, User, Phone, Mail, Lock, LogIn } from 'lucide-react';
+import ForgotPassword from './ForgotPassword';
 
 const registerSchema = z.object({
   name: z.string().min(1, '單位名稱必填'),
@@ -43,6 +44,7 @@ interface Props {
 
 export default function UnitRegistration({ onUnitRegistered, disabled = false }: Props) {
   const [isLogin, setIsLogin] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,12 +121,26 @@ export default function UnitRegistration({ onUnitRegistered, disabled = false }:
     );
   }
 
+  if (showForgotPassword) {
+    return (
+      <ForgotPassword 
+        onBack={() => {
+          setShowForgotPassword(false);
+          setError(null);
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6 flex justify-center gap-4">
         <button
           type="button"
-          onClick={() => setIsLogin(false)}
+          onClick={() => {
+            setIsLogin(false);
+            setError(null);
+          }}
           className={`px-6 py-2 rounded-lg font-medium transition-all ${
             !isLogin 
               ? 'bg-blue-600 text-white' 
@@ -135,7 +151,10 @@ export default function UnitRegistration({ onUnitRegistered, disabled = false }:
         </button>
         <button
           type="button"
-          onClick={() => setIsLogin(true)}
+          onClick={() => {
+            setIsLogin(true);
+            setError(null);
+          }}
           className={`px-6 py-2 rounded-lg font-medium transition-all ${
             isLogin 
               ? 'bg-blue-600 text-white' 
@@ -308,6 +327,16 @@ export default function UnitRegistration({ onUnitRegistered, disabled = false }:
             <LogIn className="inline h-4 w-4 mr-2" />
             {loading ? '登入中...' : '登入'}
           </button>
+
+          <div className="text-center mt-4">
+            <button
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+            >
+              忘記密碼？
+            </button>
+          </div>
         </form>
       )}
     </div>

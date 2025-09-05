@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const registerSchema = z.object({
   name: z.string().min(1, '單位名稱必填'),
@@ -49,6 +50,25 @@ export async function POST(request: NextRequest) {
         email: true
       }
     });
+
+    // Get competition name for welcome email
+    const competitionNameConfig = await prisma.systemConfig.findUnique({
+      where: { key: 'competitionName' }
+    });
+    const competitionName = competitionNameConfig?.value || '柔術報名系統';
+    
+    // Send welcome email (don't block the response if email fails)
+    sendWelcomeEmail(validatedData.email, validatedData.name, competitionName)
+      .then(success => {
+        if (success) {
+          console.log(`Welcome email sent to ${validatedData.email}`);
+        } else {
+          console.log(`Failed to send welcome email to ${validatedData.email}`);
+        }
+      })
+      .catch(error => {
+        console.error(`Error sending welcome email to ${validatedData.email}:`, error);
+      });
     
     return NextResponse.json({
       success: true,

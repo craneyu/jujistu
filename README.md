@@ -1,8 +1,12 @@
 # 2025年全國柔術錦標賽 - 報名系統
 
+[![在線展示](https://img.shields.io/badge/在線展示-查看網站-blue)](https://your-demo-site.vercel.app)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujistu)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujistu)
+
 ## 系統概述
 
-這是一個完整的柔術比賽線上報名系統，使用 Next.js 14、TypeScript、Tailwind CSS 和 SQLite 建置。
+這是一個完整的柔術比賽線上報名系統，使用 Next.js 15、TypeScript、Tailwind CSS 和 Prisma ORM 建置。支援多種部署方式，可輕鬆部署到 Vercel、Netlify 或 Azure。
 
 ## 技術架構
 

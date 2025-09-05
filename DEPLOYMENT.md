@@ -49,15 +49,18 @@ azd up
 部署前需要設定以下環境變數：
 
 ### 必要變數
+
 - `DATABASE_URL`: `file:./prisma/production.db` （SQLite 檔案路徑）
 - `NEXTAUTH_SECRET`: NextAuth 密鑰（產生方式：`openssl rand -base64 32`）
 - `NEXTAUTH_URL`: 您的網站 URL
 
 ### Azure 儲存體（用於檔案上傳，可選）
+
 - `AZURE_STORAGE_ACCOUNT_NAME`: Azure 儲存體帳戶名稱
 - `AZURE_STORAGE_CONTAINER_NAME`: 儲存容器名稱
 
 ### 郵件設定（選用）
+
 - `EMAIL_HOST`: SMTP 伺服器
 - `EMAIL_PORT`: SMTP 連接埠
 - `EMAIL_USER`: 郵件帳戶
@@ -69,11 +72,12 @@ azd up
 ✅ **零設定**: 檔案型資料庫，即開即用  
 ✅ **免費**: 不需要付費的資料庫服務  
 ✅ **高效能**: 適合中小型應用  
-✅ **可攜性**: 整個資料庫就是一個檔案  
+✅ **可攜性**: 整個資料庫就是一個檔案
 
 ## 🗄️ 預設管理員帳戶
 
 系統會自動建立管理員帳戶：
+
 - **帳號**: admin@jujitsu.com
 - **密碼**: admin123
 

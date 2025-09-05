@@ -44,6 +44,10 @@ yarn-error.log*
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# SQLite databases (keep example, ignore actual data)
+/prisma/*.db
+!/prisma/dev.db
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

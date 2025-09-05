@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "npm run prisma:generate && npm run prisma:deploy && next build --turbopack",
     "start": "next start",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "node scripts/init-db.js",
+    "postbuild": "npm run prisma:seed"
   },
   "dependencies": {
     "@azure/identity": "^4.4.1",

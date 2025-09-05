@@ -3,10 +3,16 @@
   "installCommand": "npm install",
   "outputDirectory": ".next",
   "framework": "nextjs",
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  },
   "env": {
-    "DATABASE_URL": "@database_url",
+    "DATABASE_URL": "file:./prisma/production.db",
     "NEXTAUTH_SECRET": "@nextauth_secret",
-    "AZURE_STORAGE_CONNECTION_STRING": "@azure_storage_connection_string",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "AZURE_STORAGE_ACCOUNT_NAME": "@azure_storage_account_name",
     "AZURE_STORAGE_CONTAINER_NAME": "@azure_storage_container_name"
   }
 }

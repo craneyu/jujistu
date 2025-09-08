@@ -290,7 +290,7 @@ export default function RegistrationsManagement() {
     
     registrations.forEach(reg => {
       // 如果已經處理過這個隊伍，跳過
-      if (reg.teamPartnerId && processedTeams.has(`${Math.min(reg.athlete.id, reg.teamPartnerId)}-${Math.max(reg.athlete.id, reg.teamPartnerId)}`)) {
+      if (reg.teamPartnerId && processedTeams.has([reg.athlete.id, reg.teamPartnerId].sort().join('-'))) {
         return;
       }
       
@@ -316,7 +316,7 @@ export default function RegistrationsManagement() {
           }
           // 將兩個隊友都加入同一組
           weightGroups.get(categoryKey)!.push(reg, partner);
-          processedTeams.add(`${Math.min(reg.athlete.id, reg.teamPartnerId)}-${Math.max(reg.athlete.id, reg.teamPartnerId)}`);
+          processedTeams.add([reg.athlete.id, reg.teamPartnerId].sort().join('-'));
         }
       } else {
         // 個人項目（如果有的話）
@@ -569,7 +569,7 @@ export default function RegistrationsManagement() {
                                 
                                 if (isDuoEvent) {
                                   // 雙人項目：每兩個隊友顯示在同一行
-                                  const teamRows: JSX.Element[] = [];
+                                  const teamRows: React.ReactElement[] = [];
                                   const processedIds = new Set<string>();
                                   let teamNumber = 1;
                                   

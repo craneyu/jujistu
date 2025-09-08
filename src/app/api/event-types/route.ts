@@ -80,9 +80,9 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('驗證錯誤:', error.errors);
+      console.error('驗證錯誤:', error.issues);
       return NextResponse.json(
-        { error: `驗證錯誤: ${error.errors[0].message}` },
+        { error: `驗證錯誤: ${error.issues[0].message}` },
         { status: 400 }
       );
     }
@@ -126,7 +126,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: `驗證錯誤: ${error.errors[0].message}` },
+        { error: `驗證錯誤: ${error.issues[0].message}` },
         { status: 400 }
       );
     }

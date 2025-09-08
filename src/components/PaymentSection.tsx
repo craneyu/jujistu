@@ -13,7 +13,7 @@ const paymentSchema = z.object({
   bankName: z.string().min(1, '請輸入銀行名稱'),
   accountLastFive: z.string().regex(/^\d{5}$/, '請輸入帳號後五碼'),
   transferDate: z.string().min(1, '請選擇匯款日期'),
-  transferAmount: z.string().transform(val => parseFloat(val)).pipe(z.number().positive('金額必須大於0')),
+  transferAmount: z.number().positive('金額必須大於0'),
   notes: z.string().optional()
 });
 
@@ -514,7 +514,7 @@ export default function PaymentSection({ unitId }: Props) {
                   </label>
                   <input
                     type="number"
-                    {...form.register('transferAmount')}
+                    {...form.register('transferAmount', { valueAsNumber: true })}
                     defaultValue={totalAmount}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-500 text-gray-900"
                   />

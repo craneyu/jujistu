@@ -47,8 +47,8 @@ export const usePaymentStatus = (unitId: string | null) => {
   }, [unitId]);
 
   // Determine if registration modifications should be disabled
-  const isRegistrationLocked = paymentInfo && 
-    (paymentInfo.paymentStatus === 'paid' || paymentInfo.paymentStatus === 'confirmed');
+  const isRegistrationLocked = Boolean(paymentInfo && 
+    (paymentInfo.paymentStatus === 'paid' || paymentInfo.paymentStatus === 'confirmed'));
 
   return {
     paymentInfo,

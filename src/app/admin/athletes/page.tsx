@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { determineAgeGroup } from '@/lib/utils';
 import { 
   ArrowLeft,
   Search,
@@ -36,6 +37,7 @@ interface Athlete {
   emergencyContactPhone: string;
   emergencyContactRelation: string;
   coachName: string;
+  masterCategory?: string;
   photo?: string;
   coachCertificate?: string;
   consentForm?: string;
@@ -515,7 +517,7 @@ export default function AthletesManagement() {
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                         <div><span className="font-semibold text-gray-800">性別:</span> <span className="text-gray-900 font-medium">{selectedAthlete.gender === 'M' ? '男性' : '女性'}</span></div>
                         <div><span className="font-semibold text-gray-800">年齡:</span> <span className="text-gray-900 font-medium">{getAge(selectedAthlete.birthDate)} 歲</span></div>
-                        <div><span className="font-semibold text-gray-800">組別:</span> <span className="text-gray-900 font-medium">{getAgeGroupText(selectedAthlete.ageGroup)}</span></div>
+                        <div><span className="font-semibold text-gray-800">組別:</span> <span className="text-gray-900 font-medium">{getAgeGroupText(determineAgeGroup(new Date(selectedAthlete.birthDate)))}</span></div>
                         {selectedAthlete.masterCategory && (
                           <div><span className="font-semibold text-gray-800">大師組:</span> <span className="text-blue-700 font-semibold">
                             {selectedAthlete.masterCategory}

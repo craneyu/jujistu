@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const oauth2Client = new google.auth.OAuth2(
       configMap.googleClientId,
       configMap.googleClientSecret,
-      `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/auth/google/callback`
+      `${process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'}/api/auth/google/callback`
     );
 
     // 交換授權碼換取存取權杖

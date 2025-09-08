@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:https": "node server.js",
     "build": "npm run prisma:generate && npm run prisma:deploy && next build --turbopack",
     "start": "next start",
     "prisma:generate": "prisma generate",

@@ -5,10 +5,10 @@ import { z } from 'zod';
 const eventCategorySchema = z.object({
   eventTypeId: z.string().min(1, '項目類型ID必填'),
   ageGroup: z.enum(['adult', 'youth', 'junior', 'child', 'master'], {
-    errorMap: () => ({ message: '年齡組別必須是: adult, youth, junior, child, master 其中之一' })
+    message: '年齡組別必須是: adult, youth, junior, child, master 其中之一'
   }),
   gender: z.enum(['M', 'F', 'mixed'], {
-    errorMap: () => ({ message: '性別必須是: M, F, mixed 其中之一' })
+    message: '性別必須是: M, F, mixed 其中之一'
   }),
   weightClass: z.string().min(1, '量級代碼必填'),
   minWeight: z.number().nullable().optional(),
@@ -114,9 +114,9 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('驗證錯誤:', error.errors);
+      console.error('驗證錯誤:', error.issues);
       return NextResponse.json(
-        { error: `驗證錯誤: ${error.errors[0].message}` },
+        { error: `驗證錯誤: ${error.issues[0].message}` },
         { status: 400 }
       );
     }
@@ -160,7 +160,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: `驗證錯誤: ${error.errors[0].message}` },
+        { error: `驗證錯誤: ${error.issues[0].message}` },
         { status: 400 }
       );
     }

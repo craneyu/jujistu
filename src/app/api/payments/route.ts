@@ -80,9 +80,9 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('Validation error:', error.errors);
+      console.error('Validation error:', error.issues);
       return NextResponse.json(
-        { error: `驗證錯誤: ${error.errors[0].message}` },
+        { error: `驗證錯誤: ${error.issues[0].message}` },
         { status: 400 }
       );
     }

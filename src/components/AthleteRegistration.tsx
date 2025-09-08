@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { User, Calendar, Phone, Mail, Weight, Award, Upload, AlertCircle, Edit2, Trash2, Lock } from 'lucide-react';
-import { determineAgeGroup, determineMasterCategory } from '@/lib/utils';
+import { determineAgeGroup, determineMasterCategorySync } from '@/lib/utils';
 import { BELT_LEVELS } from '@/lib/types';
 import FileUpload from './FileUpload';
 
@@ -20,7 +20,7 @@ const athleteSchema = z.object({
   emergencyContactPhone: z.string().min(1, '緊急聯絡人電話必填'),
   emergencyContactRelation: z.string().min(1, '與緊急聯絡人之關係必填'),
   belt: z.enum(['white', 'blue', 'purple', 'brown', 'black']),
-  weight: z.string().transform(val => parseFloat(val)).pipe(z.number().positive('體重必須大於0')),
+  weight: z.number().positive('體重必須大於0'),
   coachName: z.string().min(1, '教練姓名必填'),
   coachCertificate: z.string().optional(),
   photo: z.string().optional(),
@@ -88,7 +88,7 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered, disab
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const birthDate = new Date(e.target.value);
     const ageGroup = determineAgeGroup(birthDate);
-    const masterCategory = determineMasterCategory(birthDate);
+    const masterCategory = determineMasterCategorySync(birthDate);
     setAgeInfo({ ageGroup, masterCategory });
   };
 
@@ -116,7 +116,7 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered, disab
       emergencyContactPhone: athlete.emergencyContactPhone || '',
       emergencyContactRelation: athlete.emergencyContactRelation || '',
       belt: athlete.belt,
-      weight: athlete.weight.toString(),
+      weight: athlete.weight,
       coachName: athlete.coachName || '',
       consentAgreement: true // 編輯時默認已同意
     });
@@ -124,7 +124,7 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered, disab
     // 設定年齡資訊
     const birthDate = new Date(athlete.birthDate);
     const ageGroup = determineAgeGroup(birthDate);
-    const masterCategory = determineMasterCategory(birthDate);
+    const masterCategory = determineMasterCategorySync(birthDate);
     setAgeInfo({ ageGroup, masterCategory });
 
     // 滾動到表單區域
@@ -236,7 +236,7 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered, disab
         emergencyContactPhone: '',
         emergencyContactRelation: '',
         belt: 'white',
-        weight: '',
+        weight: 0,
         coachName: '',
         consentAgreement: false
       });
@@ -550,7 +550,7 @@ export default function AthleteRegistration({ unitId, onAthleteRegistered, disab
                 <input
                   type="number"
                   step="0.1"
-                  {...form.register('weight')}
+                  {...form.register('weight', { valueAsNumber: true })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-500 text-gray-900"
                   placeholder="例：65.5"
                 />

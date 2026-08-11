@@ -45,7 +45,7 @@ const migrated = runOptional('套用資料庫 migration', 'npx prisma migrate de
 
 if (migrated) {
   runOptional('建立預設報名單位', 'node scripts/init-db.js');
-  runOptional('建立競賽項目種子資料', 'npx prisma db seed');
+  runOptional('建立競賽項目種子資料', 'node scripts/seed-events.js');
 } else {
   console.warn('\n⚠️  migration 未成功，略過資料初始化。');
 }

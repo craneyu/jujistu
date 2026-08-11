@@ -9,8 +9,9 @@
   publish = ".next"
 
 [build.environment]
-  # Next.js 15 需要 Node 18.18+；固定版本避免 Netlify 預設值變動造成 build 漂移
-  NODE_VERSION = "20"
+  # Next.js 15 需要 Node 18.18+。固定版本避免 Netlify 預設值變動造成 build 漂移；
+  # 22 是本機驗證過的版本。
+  NODE_VERSION = "22"
   # 只在 build 期間有效，runtime（Functions）讀不到，
   # runtime 的 DATABASE_URL 請在 Netlify UI 的 Environment variables 設定。
   DATABASE_URL = "file:./prisma/production.db"

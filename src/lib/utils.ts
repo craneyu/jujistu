@@ -14,19 +14,8 @@ export function determineAgeGroup(birthDate: Date): string {
   return 'master';  // 35歲以上
 }
 
-export async function determineMasterCategory(birthDate: Date): Promise<string | null> {
-  const age = calculateAge(birthDate);
-  
-  // 動態載入年齡配置
-  const { getAgeRanges } = await import('./ageConfig');
-  const ageRanges = await getAgeRanges();
-  
-  if (age < ageRanges.m1MinAge) return null;
-  if (age >= ageRanges.m1MinAge && age <= ageRanges.m1MaxAge) return 'M1';
-  if (age >= ageRanges.m2MinAge && age <= ageRanges.m2MaxAge) return 'M2';
-  if (age >= ageRanges.m3MinAge) return 'M3';
-  return null;
-}
+// 需要讀取資料庫的 determineMasterCategory 已移到 utils.server.ts，
+// 避免 client component 經由這個檔案把 Prisma 打進瀏覽器 bundle。
 
 // 同步版本，用於不支援 async 的場合
 export function determineMasterCategorySync(birthDate: Date, ageRanges?: {

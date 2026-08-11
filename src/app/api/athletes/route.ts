@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { determineAgeGroup, determineMasterCategory } from '@/lib/utils';
+import { determineAgeGroup } from '@/lib/utils';
+import { determineMasterCategory } from '@/lib/utils.server';
 
 const athleteSchema = z.object({
   unitId: z.string(),

@@ -21,10 +21,39 @@
 1. Fork 此 repository
 2. 在 [Netlify](https://netlify.com) 註冊帳戶
 3. 連接您的 GitHub repository
-4. 設定環境變數
-5. 部署
+4. 直接部署即可，建置設定由 repo 內的 `netlify.toml` 提供
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujistu)
+
+#### Netlify 上的注意事項
+
+`netlify.toml` 會用 `npm run build:netlify` 建置，和本機的 `npm run build` 有幾點差異，
+都是為了讓 build 在 Netlify 的環境下不會中斷：
+
+- 不使用 `next build --turbopack`，production 建置走穩定的 webpack 路徑
+- 在 build 階段建立並灌入示範資料（`prisma migrate deploy` → `init-db.js` → `prisma db seed`）
+- `netlify.toml` 的 `[build.environment]` 只在 build 期間有效，**Functions runtime 讀不到**。
+  `src/lib/prisma.ts` 因此內建了與 build 相同的 SQLite 預設路徑
+
+⚠️ **SQLite 在 Netlify 上是唯讀的**
+
+Netlify Functions 的檔案系統唯讀，且每次 cold start 都會還原成 build 當下的狀態。
+因此在 Netlify 上：
+
+- ✅ 可以瀏覽頁面、讀取賽事項目與系統設定、瀏覽後台
+- ❌ 單位註冊、選手報名、繳費上傳等**寫入操作會失敗**
+
+要讓寫入功能可用，必須改接外部資料庫（見下方）。
+
+#### 升級為可寫入（改接 Postgres）
+
+專案內已有一份 Postgres 版本的 schema（`prisma/schema.azure.prisma`）：
+
+1. 在 Netlify 的 Database 頁面（或任一 Postgres 服務）建立資料庫
+2. 用該 schema 取代 `prisma/schema.prisma`，並重新產生 migration
+   （既有 migration 是 SQLite 語法，不能直接沿用）
+3. 在 Netlify UI 的 **Site configuration → Environment variables** 設定 `DATABASE_URL`
+   （UI 設定的變數 build 與 runtime 都讀得到，會覆蓋 `netlify.toml` 的預設值）
 
 ### 選項 3：Azure 部署
 
@@ -74,14 +103,18 @@ azd up
 ✅ **高效能**: 適合中小型應用  
 ✅ **可攜性**: 整個資料庫就是一個檔案
 
-## 🗄️ 預設管理員帳戶
+## 🗄️ 預設帳號
 
-系統會自動建立管理員帳戶：
+初始化腳本會建立兩種不同的登入身分，請勿混用：
 
-- **帳號**: admin@jujitsu.com
-- **密碼**: admin123
+| 用途 | 入口 | 帳號 | 密碼 | 驗證來源 |
+|---|---|---|---|---|
+| 後台管理 | `/admin` | `admin` | `admin123` | `src/app/api/admin/login/route.ts` 內的固定帳密 |
+| 報名單位 | 首頁單位登入 | `admin@jujitsu.com` | `admin123` | 資料庫 `RegistrationUnit` 資料表 |
 
-⚠️ **重要**: 部署後請立即修改管理員密碼！
+後台登入**不經過資料庫**，`RegistrationUnit` 也沒有 `isAdmin` 欄位。
+
+⚠️ **重要**: 部署後請立即修改這兩組密碼！後台密碼需改 `ADMIN_PASSWORD_HASH` 常數。
 
 ## 📋 功能特色
 

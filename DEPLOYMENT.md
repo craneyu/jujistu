@@ -20,6 +20,34 @@
 > 但那些 secrets 從未設定，導致 workflow 每次都失敗。改用原生整合後已移除該 job，
 > `.github/workflows/deploy.yml` 現在只負責建置驗證。
 
+#### 部署成功了，網址卻打不開？
+
+部署狀態顯示 **Ready / success**，但打開網址被導向 Vercel 登入頁（HTTP 302 到
+`vercel.com/sso-api`），代表專案開啟了 **Deployment Protection**。
+這會擋掉所有未登入的訪客，不分手機或桌面，展示用的網站必須關閉它：
+
+**Vercel → 專案 → Settings → Deployment Protection → Vercel Authentication → Disabled → Save**
+
+判斷方式：
+
+| 回應 | 意義 |
+|---|---|
+| `302` → `vercel.com/sso-api` | Deployment Protection 開啟，依上述步驟關閉 |
+| `404` + `DEPLOYMENT_NOT_FOUND` | 該網址沒有對應的部署（網址打錯，或部署失敗） |
+| `200` | 正常 |
+
+這個設定只能在 Vercel dashboard 修改（或透過帶 token 的 API），
+repo 內的 `vercel.json` 無法控制。dashboard 需要桌面版介面，
+手機瀏覽器可切換「桌面版網站」模式進入。
+
+#### Vercel 會封鎖有已知漏洞的 Next.js 版本
+
+若 build log 最後出現 `Vulnerable version of Next.js detected`，
+那不是警告而是**封鎖原因**——build 會成功，但部署不會完成，網址回
+`DEPLOYMENT_NOT_FOUND`。CVE-2025-66478 影響 Next.js 15.0.0 ～ 16.0.6，
+各 release line 的修補版本：15.4.x → 15.4.8、15.5.x → 15.5.7、16.0.x → 16.0.10。
+本專案已升級至 15.5.7。詳見 <https://vercel.com/kb/bulletin/react2shell>。
+
 ### 選項 2：Netlify 部署
 
 1. Fork 此 repository

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { google } from 'googleapis';
+// 這裡只需要 OAuth2 用戶端。改用 google-auth-library 而非 googleapis：
+// `import { google } from 'googleapis'` 會把整包 API 定義（約 182 MB）帶進
+// serverless function，很容易超過平台的 function 體積上限；
+// google-auth-library 只有不到 1 MB，且已是本專案的相依套件。
+import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
 
 // 生成Google OAuth URL
@@ -27,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 建立OAuth2客戶端
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new OAuth2Client(
       configMap.googleClientId,
       configMap.googleClientSecret,
       `${process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'}/api/auth/google/callback`

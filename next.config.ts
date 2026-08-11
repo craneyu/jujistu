@@ -8,9 +8,14 @@ const nextConfig: NextConfig = {
   // 一層層目錄前綴，導致 runtime 找不到 prisma 檔案。固定在專案根目錄。
   outputFileTracingRoot: process.cwd(),
   outputFileTracingIncludes: {
-    // Prisma 的 query engine 與 SQLite 檔案不會被靜態分析追到，
-    // 必須顯式帶進 serverless bundle，否則 Netlify Functions 會找不到 engine。
-    "/api/**/*": ["./prisma/**/*", "./node_modules/.prisma/client/**/*"],
+    // SQLite 檔案不會被靜態分析追到，兩個平台都要顯式帶進 bundle。
+    //
+    // Prisma 的 query engine 則只有 Netlify 需要顯式指定；Vercel 本身就會處理
+    // Prisma，重複指定會讓每個 API function 各夾帶一份約 34 MB 的 engine，
+    // 徒增體積並可能撞到 function 的體積上限。
+    "/api/**/*": process.env.VERCEL
+      ? ["./prisma/**/*"]
+      : ["./prisma/**/*", "./node_modules/.prisma/client/**/*"],
   },
   images: {
     domains: ["localhost"],

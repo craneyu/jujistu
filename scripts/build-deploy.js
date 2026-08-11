@@ -20,15 +20,18 @@ if (!process.env.DATABASE_URL) {
   console.log(`ℹ️  DATABASE_URL 未設定，使用預設值 ${DEFAULT_SQLITE_URL}`);
 }
 
-function run(label, command) {
+/** 資料庫步驟的逾時上限。卡住的步驟會被中止，而不是拖到平台 build 逾時。 */
+const DB_STEP_TIMEOUT_MS = 5 * 60 * 1000;
+
+function run(label, command, timeout) {
   console.log(`\n▶ ${label}\n  $ ${command}`);
-  execSync(command, { stdio: 'inherit', env: process.env });
+  execSync(command, { stdio: 'inherit', env: process.env, timeout });
 }
 
-/** 資料庫步驟：失敗只警告，不中斷部署（網站仍要能看）。 */
+/** 資料庫步驟：失敗或逾時只警告，不中斷部署（網站仍要能看）。 */
 function runOptional(label, command) {
   try {
-    run(label, command);
+    run(label, command, DB_STEP_TIMEOUT_MS);
     return true;
   } catch (error) {
     console.warn(`\n⚠️  ${label} 失敗，略過此步驟繼續建置。`);
@@ -45,7 +48,7 @@ const migrated = runOptional('套用資料庫 migration', 'npx prisma migrate de
 
 if (migrated) {
   runOptional('建立預設報名單位', 'node scripts/init-db.js');
-  runOptional('建立競賽項目種子資料', 'npx prisma db seed');
+  runOptional('建立競賽項目種子資料', 'node scripts/seed-events.js');
 } else {
   console.warn('\n⚠️  migration 未成功，略過資料初始化。');
 }

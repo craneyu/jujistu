@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { google } from 'googleapis';
+// 見 ../route.ts 的說明：改用輕量的 google-auth-library，避免 googleapis
+// 把整包 API 定義帶進 serverless function。
+import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 建立OAuth2客戶端
-    const oauth2Client = new google.auth.OAuth2(
+    const oauth2Client = new OAuth2Client(
       configMap.googleClientId,
       configMap.googleClientSecret,
       `${process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'}/api/auth/google/callback`
@@ -46,9 +48,19 @@ export async function GET(request: NextRequest) {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // 取得使用者資訊
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const { data: userInfo } = await oauth2.userinfo.get();
+    // 取得使用者資訊。原本用 googleapis 的 oauth2.userinfo.get()，
+    // 這裡直接呼叫同一個 endpoint，避免為了一次請求載入整包 googleapis。
+    const userInfoResponse = await fetch(
+      'https://www.googleapis.com/oauth2/v2/userinfo',
+      { headers: { Authorization: `Bearer ${tokens.access_token}` } }
+    );
+
+    if (!userInfoResponse.ok) {
+      console.error('取得 Google 使用者資訊失敗:', userInfoResponse.status);
+      return NextResponse.redirect(new URL('/?auth=callback-error', request.url));
+    }
+
+    const userInfo: { email?: string; name?: string } = await userInfoResponse.json();
 
     if (!userInfo.email) {
       return NextResponse.redirect(new URL('/?auth=no-email', request.url));

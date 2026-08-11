@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { determineAgeGroup, determineMasterCategory } from '@/lib/utils';
+import { determineAgeGroup } from '@/lib/utils';
+import { determineMasterCategory } from '@/lib/utils.server';
 import { clearAgeConfigCache } from '@/lib/ageConfig';
 
 export async function POST() {

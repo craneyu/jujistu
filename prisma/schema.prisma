@@ -3,6 +3,9 @@
 
 generator client {
   provider = "prisma-client-js"
+  // Netlify Functions 跑在 AWS Lambda (Amazon Linux 2023)，
+  // 需要 rhel-openssl-3.0.x 的 query engine，否則 runtime 會找不到 engine 而 500。
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

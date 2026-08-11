@@ -45,8 +45,15 @@ yarn-error.log*
 !/public/uploads/.gitkeep
 
 # SQLite databases (keep example, ignore actual data)
+# 注意：DATABASE_URL 的相對路徑是以 prisma/schema.prisma 所在目錄為基準，
+# 所以 "file:./prisma/dev.db" 實際落在 prisma/prisma/dev.db，兩層都要列。
 /prisma/*.db
 !/prisma/dev.db
+/prisma/prisma/*.db
+!/prisma/prisma/dev.db
+
+# netlify
+.netlify/
 
 # typescript
 *.tsbuildinfo

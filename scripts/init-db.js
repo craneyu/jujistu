@@ -23,11 +23,12 @@ async function main() {
         phone: "0900000000",
         email: "admin@jujitsu.com",
         password: hashedPassword,
-        isAdmin: true,
+        // 注意：RegistrationUnit 沒有 isAdmin 欄位。後台登入走 /api/admin/login
+        // 的固定帳密（admin / admin123），不經過這張表。
       },
     });
 
-    console.log("✅ 已建立預設管理員帳戶");
+    console.log("✅ 已建立預設報名單位帳戶");
     console.log("帳號: admin@jujitsu.com");
     console.log("密碼: admin123");
   } else {

@@ -1,8 +1,13 @@
 # 2025 年全國柔術錦標賽 - 報名系統
 
-[![在線展示](https://img.shields.io/badge/在線展示-查看網站-blue)](https://your-demo-site.vercel.app)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujistu)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujistu)
+[![在線展示](https://img.shields.io/badge/在線展示-查看網站-blue)](https://jijutsu-beige.vercel.app)
+
+線上展示：<https://jijutsu-beige.vercel.app>
+
+> ⚠️ 線上版本是**展示用**的：Vercel 的 serverless 檔案系統唯讀，SQLite 資料庫
+> 是在建置階段產生後打包進去的，因此頁面瀏覽與資料讀取正常，但單位註冊、
+> 選手報名、繳費上傳等**寫入操作會失敗**。
+> 要開放寫入需改接 Postgres，步驟見 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
 ## 系統概述
 
@@ -109,9 +114,9 @@ http://localhost:3000
 ### 簡單 3 步驟部署
 
 ```bash
-# 1. 複製專案
+# 1. 複製專案（repo 根目錄就是專案本身，不需要再進子目錄）
 git clone https://github.com/craneyu/jujistu.git
-cd jujistu/jujitsu-registration
+cd jujistu
 
 # 2. 一鍵設定
 ./setup.sh
@@ -124,7 +129,8 @@ npm run dev
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujistu)
 
-**💡 SQLite 讓部署變得超簡單 - 無需設定外部資料庫！**
+**💡 SQLite 讓部署變得超簡單 — 無需設定外部資料庫。**
+但請注意 serverless 平台的檔案系統唯讀，線上版本只能讀不能寫（見上方說明）。
 
 ## 使用流程
 

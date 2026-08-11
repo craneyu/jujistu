@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "dev:https": "node server.js",
     "build": "npm run prisma:generate && npm run prisma:deploy && next build --turbopack",
-    "build:deploy": "prisma generate && prisma migrate deploy && node scripts/init-db.js && prisma db seed && next build",
+    "build:deploy": "node scripts/build-deploy.js",
     "start": "next start",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",

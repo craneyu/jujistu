@@ -1,4 +1,11 @@
-name: Deploy to Production
+# 部署由 Vercel 的 GitHub 整合負責（push 到 main 會自動觸發 production 部署），
+# 這裡只做建置驗證。
+#
+# 原本這個 workflow 有一個 deploy-vercel job，使用 amondnet/vercel-action 搭配
+# VERCEL_TOKEN / ORG_ID / PROJECT_ID secrets；那些 secrets 從未設定過，
+# 導致 job 每次都以 "Input required and not supplied: vercel-token" 失敗。
+# 改用原生整合後不需要 secrets，因此移除該 job。
+name: CI
 
 on:
   push:
@@ -39,19 +46,3 @@ jobs:
             exit 1
           fi
           echo "Build successful!"
-
-  deploy-vercel:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
-          vercel-args: "--prod"

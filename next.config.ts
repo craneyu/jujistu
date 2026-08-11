@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // standalone 是給 Docker 自架與 Netlify 用的。Vercel 有自己的建置產物格式，
+  // build 期間會設 VERCEL=1，這裡讓它走平台預設，避免兩套產物格式互相干擾。
+  output: process.env.VERCEL ? undefined : "standalone",
   // Next.js 會往上層找 lockfile 來推斷 tracing root，猜錯時 standalone 內會多出
   // 一層層目錄前綴，導致 runtime 找不到 prisma 檔案。固定在專案根目錄。
   outputFileTracingRoot: process.cwd(),

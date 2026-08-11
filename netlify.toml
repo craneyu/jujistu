@@ -1,11 +1,14 @@
-# Netlify 部署設定
+# Netlify 部署設定（備選平台）
+#
+# 本專案目前實際部署在 Vercel（見 vercel.json）。這個檔案是為了讓 Netlify
+# 也能一鍵部署而保留的，兩邊共用 package.json 的 build:deploy。
 #
 # 沒有這個檔案時 Netlify 會沿用 package.json 的 `npm run build`，
 # 而該指令包含 `prisma migrate deploy`；在 Netlify 上 DATABASE_URL 沒設定時
 # 會直接失敗，build 沒產出 → 網站顯示 Netlify 預設的 "Page not found"。
 
 [build]
-  command = "npm run build:netlify"
+  command = "npm run build:deploy"
   publish = ".next"
 
 [build.environment]

@@ -1,8 +1,8 @@
 # 2025 年全國柔術錦標賽 - 報名系統
 
-[![在線展示](https://img.shields.io/badge/在線展示-查看網站-blue)](https://jijutsu-beige.vercel.app)
+[![在線展示](https://img.shields.io/badge/在線展示-查看網站-blue)](https://jujistu-craneyuniuedutws-projects.vercel.app)
 
-線上展示：<https://jijutsu-beige.vercel.app>
+線上展示：<https://jujistu-craneyuniuedutws-projects.vercel.app>
 
 > ⚠️ 線上版本是**展示用**的：Vercel 的 serverless 檔案系統唯讀，SQLite 資料庫
 > 是在建置階段產生後打包進去的，因此頁面瀏覽與資料讀取正常，但單位註冊、

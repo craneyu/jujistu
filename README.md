@@ -115,8 +115,8 @@ http://localhost:3000
 
 ```bash
 # 1. 複製專案（repo 根目錄就是專案本身，不需要再進子目錄）
-git clone https://github.com/craneyu/jujistu.git
-cd jujistu
+git clone https://github.com/craneyu/jujitsu.git
+cd jujitsu
 
 # 2. 一鍵設定
 ./setup.sh
@@ -127,7 +127,7 @@ npm run dev
 
 ### 或使用一鍵部署按鈕
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujistu)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujitsu)
 
 **💡 SQLite 讓部署變得超簡單 — 無需設定外部資料庫。**
 但請注意 serverless 平台的檔案系統唯讀，線上版本只能讀不能寫（見上方說明）。

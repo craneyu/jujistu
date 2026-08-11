@@ -13,7 +13,7 @@
 
 之後只要 push 到 `main`，Vercel 的 GitHub 整合就會自動部署 production。
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujistu)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/craneyu/jujitsu)
 
 > **不需要設定任何 GitHub Actions secrets。** 專案早期曾用
 > `amondnet/vercel-action` 搭配 `VERCEL_TOKEN` / `ORG_ID` / `PROJECT_ID` 部署，
@@ -27,7 +27,7 @@
 3. 連接您的 GitHub repository
 4. 直接部署即可，建置設定由 repo 內的 `netlify.toml` 提供
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujistu)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujitsu)
 
 `netlify.toml` 與 Vercel 共用 `npm run build:deploy`。Netlify 的注意事項是
 `[build.environment]` 只在 build 期間有效、Functions runtime 讀不到，

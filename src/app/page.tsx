@@ -220,13 +220,13 @@ export default function Home() {
       
       {/* 只有在沒有橫幅圖片時才顯示原始 header */}
       {!config.headerBanner && (
-        <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 shadow-lg">
+        <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 sm:p-6 shadow-lg">
           <div className="container mx-auto">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-3">
-                  <Trophy className="h-8 w-8" />
-                  <h1 className="text-3xl font-bold">{config.competitionName} 報名系統</h1>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Trophy className="h-6 w-6 sm:h-8 sm:w-8 shrink-0" />
+                  <h1 className="text-xl sm:text-3xl font-bold">{config.competitionName} 報名系統</h1>
                 </div>
                 <div className="mt-2 text-blue-100">
                   {config.competitionStartDate && (
@@ -276,7 +276,7 @@ export default function Home() {
         </header>
       )}
 
-      <main className="container mx-auto p-6">
+      <main className="container mx-auto p-4 sm:p-6">
         {/* 報名狀態提示 */}
         {registrationStatus.status !== 'open' && (
           <div className={`mb-6 p-4 border-l-4 rounded-r-lg ${
@@ -358,11 +358,11 @@ export default function Home() {
               setActiveTab(value);
             }
           }} className="w-full">
-            <TabsList className="flex border-b bg-gray-50">
+            <TabsList className="flex border-b bg-gray-50 overflow-x-auto">
               <TabsTrigger 
                 value="unit" 
                 disabled={registrationStatus.status !== 'open'}
-                className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                className={`flex-1 px-2 py-3 sm:px-6 sm:py-4 text-center font-medium transition-all whitespace-nowrap ${
                   registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60'
                     : isRegistrationLocked
@@ -370,15 +370,18 @@ export default function Home() {
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <Users className="h-5 w-5" />
-                  <span className="font-semibold">1. 單位註冊</span>
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span className="font-semibold text-xs sm:text-base">
+                    <span className="sm:hidden">單位</span>
+                    <span className="hidden sm:inline">1. 單位註冊</span>
+                  </span>
                 </div>
               </TabsTrigger>
               <TabsTrigger 
                 value="athlete" 
                 disabled={!currentUnitId || registrationStatus.status !== 'open'}
-                className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                className={`flex-1 px-2 py-3 sm:px-6 sm:py-4 text-center font-medium transition-all whitespace-nowrap ${
                   !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
                     : isRegistrationLocked
@@ -386,15 +389,18 @@ export default function Home() {
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <UserPlus className="h-5 w-5" />
-                  <span className="font-semibold">2. 選手註冊</span>
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span className="font-semibold text-xs sm:text-base">
+                    <span className="sm:hidden">選手</span>
+                    <span className="hidden sm:inline">2. 選手註冊</span>
+                  </span>
                 </div>
               </TabsTrigger>
               <TabsTrigger 
                 value="event" 
                 disabled={!currentUnitId || registrationStatus.status !== 'open'}
-                className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                className={`flex-1 px-2 py-3 sm:px-6 sm:py-4 text-center font-medium transition-all whitespace-nowrap ${
                   !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
                     : isRegistrationLocked
@@ -402,30 +408,33 @@ export default function Home() {
                       : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <Trophy className="h-5 w-5" />
-                  <span className="font-semibold">3. 項目報名</span>
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <Trophy className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span className="font-semibold text-xs sm:text-base">
+                    <span className="sm:hidden">項目</span>
+                    <span className="hidden sm:inline">3. 項目報名</span>
+                  </span>
                 </div>
               </TabsTrigger>
               <TabsTrigger 
                 value="payment" 
                 disabled={!currentUnitId || registrationStatus.status !== 'open'}
-                className={`flex-1 px-6 py-4 text-center font-medium transition-all ${
+                className={`flex-1 px-2 py-3 sm:px-6 sm:py-4 text-center font-medium transition-all whitespace-nowrap ${
                   !currentUnitId || registrationStatus.status !== 'open'
                     ? 'text-gray-500 cursor-not-allowed bg-gray-200 opacity-60' 
                     : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600'
                 }`}
               >
-                <div className="flex items-center justify-center gap-2">
-                  <DollarSign className="h-5 w-5" />
-                  <span className="font-semibold">4. 繳費</span>
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+                  <span className="font-semibold text-xs sm:text-base">4. 繳費</span>
                 </div>
               </TabsTrigger>
             </TabsList>
 
             {/* Payment Status Lock Notice */}
             {isRegistrationLocked && (
-              <div className="mx-8 mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="mx-4 sm:mx-8 mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-2">
                   <FileCheck className="h-5 w-5 text-amber-600" />
                   <span className="font-medium text-amber-800">
@@ -437,7 +446,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="p-8">
+            <div className="p-4 sm:p-8">
               <TabsContent value="unit">
                 <UnitRegistration 
                   onUnitRegistered={(unitId, unitInfo) => {

@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // google-auth-library 只有不到 1 MB，且已是本專案的相依套件。
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
+import { getGoogleRedirectUri } from '@/lib/app-url';
 
 // 生成Google OAuth URL
 export async function GET(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     const oauth2Client = new OAuth2Client(
       configMap.googleClientId,
       configMap.googleClientSecret,
-      `${process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'}/api/auth/google/callback`
+      getGoogleRedirectUri(request)
     );
 
     // 生成授權URL

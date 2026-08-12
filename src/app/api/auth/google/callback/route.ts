@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // 把整包 API 定義帶進 serverless function。
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
+import { getGoogleRedirectUri } from '@/lib/app-url';
 import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     const oauth2Client = new OAuth2Client(
       configMap.googleClientId,
       configMap.googleClientSecret,
-      `${process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'}/api/auth/google/callback`
+      getGoogleRedirectUri(request)
     );
 
     // 交換授權碼換取存取權杖

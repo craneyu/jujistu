@@ -221,9 +221,11 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: jwtSecret
             }
             {
+              // 應用程式對外網址。程式預設會從 x-forwarded-* 標頭自動推導，
+              // 這裡明確指定作為保險（例如日後綁定自訂網域時可直接改這裡）。
               // 用環境的 defaultDomain 組出網址，而不是引用 containerApp 自己的
               // ingress.fqdn——後者會造成資源引用自身的循環參照（BCP079）。
-              name: 'NEXTAUTH_URL'
+              name: 'APP_URL'
               value: 'https://app-${resourceToken}.${containerAppsEnvironment.properties.defaultDomain}'
             }
           ]

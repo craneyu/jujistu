@@ -12,6 +12,16 @@ param location string
 @description('Name of the resource token to make resources unique')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
 
+@secure()
+@minLength(12)
+@description('PostgreSQL 管理員密碼。由 azd 從環境變數提供，不寫入版控。')
+param postgresAdminPassword string
+
+@secure()
+@minLength(32)
+@description('JWT 簽章密鑰。後台登入的 token 以此簽發，務必使用高強度隨機值。')
+param jwtSecret string
+
 // 標籤
 var tags = {
   'azd-env-name': environmentName
@@ -53,7 +63,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
   properties: {
     version: '15'
     administratorLogin: 'jujitsuadmin'
-    administratorLoginPassword: 'JujitsuApp2024!'
+    administratorLoginPassword: postgresAdminPassword
     storage: {
       storageSizeGB: 32
     }
@@ -178,7 +188,13 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             {
               name: 'DATABASE_URL'
-              value: 'postgresql://jujitsuadmin:JujitsuApp2024!@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+              value: 'postgresql://jujitsuadmin:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+            }
+            {
+              // Prisma 的 schema 宣告了 directUrl，該環境變數必須存在。
+              // Flexible Server 前面沒有連線池，因此與 DATABASE_URL 相同即可。
+              name: 'DIRECT_URL'
+              value: 'postgresql://jujitsuadmin:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
@@ -194,11 +210,11 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'JWT_SECRET'
-              value: 'your-jwt-secret-key-here'
+              value: jwtSecret
             }
             {
               name: 'NEXTAUTH_SECRET'
-              value: 'your-nextauth-secret-here'
+              value: jwtSecret
             }
             {
               name: 'NEXTAUTH_URL'
@@ -246,4 +262,5 @@ output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
 output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.name
 output AZURE_STORAGE_ACCOUNT_NAME string = storageAccount.name
 output APP_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output DATABASE_URL string = 'postgresql://jujitsuadmin:JujitsuApp2024!@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+// 不輸出連線字串：它含有密碼，會出現在部署記錄與 azd 輸出中。
+output POSTGRES_FQDN string = postgresServer.properties.fullyQualifiedDomainName

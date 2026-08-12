@@ -9,32 +9,14 @@ services:
     project: .
     language: ts
     host: containerapp
+    docker:
+      path: ./Dockerfile
 
-hooks:
-  predeploy:
-    windows:
-      shell: pwsh
-      run: |
-        echo "Generating Prisma client..."
-        npm run prisma:generate
-        echo "Building application..."
-        npm run build
-    posix:
-      shell: sh
-      run: |
-        echo "Generating Prisma client..."
-        npm run prisma:generate
-        echo "Building application..."
-        npm run build
-
-  postdeploy:
-    windows:
-      shell: pwsh
-      run: |
-        echo "Running database migrations..."
-        npm run prisma:deploy
-    posix:
-      shell: sh
-      run: |
-        echo "Running database migrations..."
-        npm run prisma:deploy
+# 這裡刻意沒有 predeploy / postdeploy hook：
+#
+# - 建構由 Dockerfile 負責。原本的 predeploy 會在本機跑 `npm run build`，
+#   而該指令包含 prisma migrate deploy，本機連不到 Azure 的資料庫。
+# - migration 與示範資料由容器啟動時的 docker-entrypoint.sh 執行。
+#   原本的 postdeploy 會在本機跑 migration，但 PostgreSQL 的防火牆規則
+#   只允許 Azure 服務連入（見 infra/main.bicep 的 AllowAzureServices），
+#   從本機執行必定連線失敗。

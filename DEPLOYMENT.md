@@ -1,10 +1,39 @@
 # 柔術報名網站部署指南
 
-## 🚀 在線展示
+## 🚀 部署平台
 
-您可以通過以下方式部署此網站：
+**本專案的正式部署平台是 Azure Container Apps。**
 
-### 選項 1：Vercel 部署（本專案實際使用）
+| 平台 | 角色 | 資料庫 |
+|---|---|---|
+| **Azure Container Apps** | **正式部署** | Azure Database for PostgreSQL Flexible Server |
+| Vercel | 早期展示站，保留為備援 | 外部 Postgres（如 Neon） |
+| Netlify | 備選，設定保留未使用 | 外部 Postgres |
+
+### 為什麼選 Azure
+
+評估過三大雲的免費方案後的結論：
+
+- **運算**不是分水嶺 — GCP Cloud Run、Azure Container Apps 都有永久免費額度，展示流量用不完
+- **資料庫**才是 — GCP Cloud SQL 沒有免費方案；AWS 自 2025-07 改制後新帳號只有 6 個月；Azure 給 12 個月
+- **決定性因素是 Visual Studio 訂閱額度** — MSDN credits 為每月重置（Enterprise 150 美元／Professional 50 美元），
+  且**消費限制預設為 On**，額度用完只會暫停服務、不會產生帳單。
+  其授權條款明訂僅限 dev/test 用途，正好對應本專案「測試展示、不對外提供服務」的定位
+- 本專案月耗約 20–25 美元（以 PostgreSQL B1ms 為主），用量不到額度兩成
+
+查證方式：`az rest --method get --url "https://management.azure.com/subscriptions?api-version=2020-01-01"`，
+看 `subscriptionPolicies.quotaId`（`MSDN_2014-09-01` 為 credits 型）與 `spendingLimit`（`On` 表示不會超額計費）。
+
+### 為什麼不用 SQLite
+
+SQLite 本身沒問題，問題在於它需要**可寫入的持久磁碟**。
+serverless 運算（Vercel、Cloud Run、Container Apps）的檔案系統唯讀且會在 cold start 重置，
+要用 SQLite 就得改用自管 VM（例如 GCP 永久免費的 e2-micro），
+等於把 OS 更新、TLS 憑證、反向代理、備份全部攬回來——對一個展示站不划算。
+
+---
+
+### 選項 1：Vercel 部署（早期展示站）
 
 1. 在 [Vercel](https://vercel.com) 登入後選 **Add New → Project**
 2. 匯入這個 GitHub repository
@@ -57,27 +86,39 @@ repo 內的 `vercel.json` 無法控制。dashboard 需要桌面版介面，
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/craneyu/jujitsu)
 
-`netlify.toml` 與 Vercel 共用 `npm run build:deploy`。Netlify 的注意事項是
-`[build.environment]` 只在 build 期間有效、Functions runtime 讀不到，
-`src/lib/prisma.ts` 因此內建了相同的 SQLite 預設路徑。
+`netlify.toml` 與 Vercel 共用 `npm run build:deploy`。注意 `[build.environment]`
+只在 build 期間有效、Functions runtime 讀不到，因此 `DATABASE_URL` 必須在
+Netlify UI 的 Environment variables 設定。
 
-### 選項 3：Azure 部署
-
-此專案已配置 Azure Container Apps 部署：
+### 選項 3：Azure 部署（正式平台）
 
 ```bash
-# 安裝 Azure Developer CLI
+# 安裝 Azure Developer CLI（若尚未安裝）
 curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# 登入 Azure
+# 登入（azd 的登入狀態與 az CLI 各自獨立，兩個都要）
+az login --tenant <你的租用戶>
 azd auth login
 
-# 初始化專案
-azd init
+# 指定目標訂閱（建議用專屬訂閱，方便獨立追蹤成本）
+az account set --subscription <訂閱 ID>
 
-# 部署到 Azure
+# 建立 azd 環境並設定密鑰（不會進版控）
+azd env new jujitsu-demo
+azd env set POSTGRES_ADMIN_PASSWORD "$(openssl rand -base64 24)"
+azd env set JWT_SECRET "$(openssl rand -base64 48)"
+
+# 佈建並部署
 azd up
 ```
+
+`infra/main.bicep` 會建立：PostgreSQL Flexible Server（B1ms）、Container Apps 環境與
+Container App、Container Registry、Storage Account 與 `uploads` 容器、Log Analytics、
+以及一個具備 ACR Pull 與 Storage Blob Data Contributor 權限的受控識別。
+
+**密鑰處理**：`postgresAdminPassword` 與 `jwtSecret` 都是 bicep 的 `@secure()` 參數，
+由 azd 從環境變數帶入，不寫死在範本裡。連線字串也刻意不作為 output 輸出，
+避免密碼出現在部署記錄中。
 
 ## 🔧 環境變數設定
 
@@ -85,50 +126,47 @@ azd up
 
 ### 必要變數
 
-- `DATABASE_URL`: `file:./prisma/production.db` （SQLite 檔案路徑）
-- `NEXTAUTH_SECRET`: NextAuth 密鑰（產生方式：`openssl rand -base64 32`）
-- `NEXTAUTH_URL`: 您的網站 URL
+- `DATABASE_URL`: PostgreSQL 連線字串（Azure 部署時由 bicep 自動注入）
+- `JWT_SECRET`: 後台登入 JWT 的簽章密鑰。**未設定時程式會退回硬編碼預設值**，
+  等同任何人都能自簽管理員 token，正式環境務必設定
 
-### Azure 儲存體（用於檔案上傳，可選）
+### 選用變數
 
-- `AZURE_STORAGE_ACCOUNT_NAME`: Azure 儲存體帳戶名稱
-- `AZURE_STORAGE_CONTAINER_NAME`: 儲存容器名稱
+- `DIRECT_URL`: migration 專用連線字串，未設定時自動沿用 `DATABASE_URL`
+- `AZURE_STORAGE_ACCOUNT_NAME` / `AZURE_STORAGE_CONTAINER_NAME`: 檔案上傳用。
+  基礎設施已備妥，但 `src/lib/azure-storage.ts` 目前**尚未接線**，
+  實際上傳仍寫入本機檔案系統（見下方限制說明）
 
-### 郵件設定（選用）
+### 郵件設定
 
-- `EMAIL_HOST`: SMTP 伺服器
-- `EMAIL_PORT`: SMTP 連接埠
-- `EMAIL_USER`: 郵件帳戶
-- `EMAIL_PASSWORD`: 郵件密碼
+SMTP 設定**存在資料庫的 `SystemConfig` 資料表**，不是環境變數，
+由後台設定頁維護。`.env.example` 中的 `EMAIL_*` 變數實際上沒有被程式讀取。
 
-## 📊 關於 SQLite
+## 🗄️ 資料庫
 
-✅ **簡單部署**: 無需外部資料庫服務，檔案型資料庫即開即用、免費、可攜
+本專案使用 **PostgreSQL**（Prisma ORM）。早期版本使用 SQLite，但 serverless 平台的
+檔案系統唯讀，導致單位註冊、選手報名、繳費上傳等寫入操作全部失敗，因此改接 Postgres。
 
-### ⚠️ 但在 serverless 平台上是唯讀的
+連線字串由部署平台的環境變數提供，**不寫入版控**：
 
-Vercel 與 Netlify 的 Functions 檔案系統都是**唯讀**的，而且每次 cold start
-都會還原成 build 當下的狀態。資料庫檔案是在 build 階段由
-`prisma migrate deploy` → `init-db.js` → `prisma db seed` 建立後打包進去的。
+| 變數 | 用途 | 必填 |
+|---|---|---|
+| `DATABASE_URL` | 應用程式連線。serverless 環境請使用 pooled 連線字串 | ✅ |
+| `DIRECT_URL` | migration 專用（unpooled）。Prisma 要求此變數必須存在；未設定時由建置腳本與容器啟動腳本以 `DATABASE_URL` 補上 | — |
 
-因此線上站台的行為是：
+`src/lib/prisma.ts` 刻意不提供任何預設值：缺少 `DATABASE_URL` 會在啟動時直接拋錯，
+而不是靜默連到不存在的資料庫，避免「部署成功但整站 500」這種最難查的狀況。
 
-- ✅ 瀏覽頁面、讀取賽事項目與系統設定、瀏覽後台
-- ❌ 單位註冊、選手報名、繳費上傳等**寫入操作會失敗**
+### migration 在什麼時候執行
 
-換句話說，目前的線上版本適合當**展示用的範例網站**，不能當正式報名系統使用。
+在 **容器啟動時**，由 `docker-entrypoint.sh` 執行，而不是 image 建構階段或 azd hook：
 
-### 升級為可寫入（改接 Postgres）
+- 不能放 image 建構階段：`docker build` 時連不到任何資料庫
+- 不能放 azd 的 `postdeploy` hook：該 hook 在本機執行，而 PostgreSQL 的防火牆規則
+  只允許 Azure 服務連入（見 `infra/main.bicep` 的 `AllowAzureServices`）
 
-專案內已有一份 Postgres 版本的 schema（`prisma/schema.azure.prisma`）：
-
-1. 建立一個 Postgres 資料庫（Vercel Postgres、Neon、Supabase 皆可）
-2. 用該 schema 取代 `prisma/schema.prisma`，並重新產生 migration
-   （既有 migration 是 SQLite 語法，不能直接沿用）
-3. 在 Vercel 的 **Settings → Environment Variables** 設定 `DATABASE_URL`
-   （會覆蓋 `vercel.json` 內的 SQLite 預設值）
-
-`src/lib/prisma.ts` 對非 `file:` 開頭的連線字串會原樣使用，不需要改程式碼。
+啟動流程為 `prisma migrate deploy` → `init-db.js` → `seed-events.js`。
+migration 失敗會中止啟動；兩支示範資料腳本皆為**冪等**，重複部署不會覆蓋既有資料。
 
 ## 🗄️ 預設帳號
 

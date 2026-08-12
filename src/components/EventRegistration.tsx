@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Trophy, Check, X, AlertCircle, Users, Lock } from 'lucide-react';
-import { EVENT_TYPES } from '@/lib/types';
+import { EVENT_TYPES, isTeamEventType } from '@/lib/types';
 
 interface Props {
   unitId: string | null;
@@ -77,12 +77,12 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
     
     // 傳統演武 - 12歲以上
     if (athlete.ageGroup !== 'child') {
-      events.push('duo');
+      events.push('duo_traditional');
     }
     
     // 創意演武 - 12歲以上
     if (athlete.ageGroup !== 'child') {
-      events.push('show');
+      events.push('duo_creative');
     }
     
     return events;
@@ -99,7 +99,7 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
 
   const handleRegisterEvent = async (athleteId: string, eventType: string) => {
     // 如果是演武項目，需要選擇隊友
-    if (eventType === 'duo' || eventType === 'show') {
+    if (isTeamEventType(eventType)) {
       setCurrentTeamEvent({ athleteId, eventType });
       setShowTeamModal(true);
       return;
@@ -260,7 +260,7 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
                   <div className="grid gap-3">
                     {athlete.registrations.map((reg: any) => {
                       const eventName = EVENT_TYPES[reg.eventType as keyof typeof EVENT_TYPES];
-                      const isTeamEvent = reg.eventType === 'duo' || reg.eventType === 'show';
+                      const isTeamEvent = isTeamEventType(reg.eventType);
                       const teammate = isTeamEvent && reg.teamPartnerId ? 
                         athletes.find(a => a.id === reg.teamPartnerId) : null;
                       
@@ -355,7 +355,7 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
                             : 'bg-white border-gray-300 hover:border-blue-500'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
-                        {(key === 'duo' || key === 'show') ? (
+                        {isTeamEventType(key) ? (
                           <Users className={`h-5 w-5 mx-auto mb-1 ${
                             isRegistered ? 'text-green-600' : 'text-gray-700'
                           }`} />
@@ -365,7 +365,7 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
                           }`} />
                         )}
                         <div className="text-sm font-medium text-gray-900">{label}</div>
-                        {(key === 'duo' || key === 'show') && (
+                        {isTeamEventType(key) && (
                           <div className="text-xs text-gray-600 mt-1">(2人組隊)</div>
                         )}
                         {isRegistered && (
@@ -385,7 +385,7 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
                   <div className="space-y-1">
                     {athlete.registrations.map((reg: any) => {
                       const eventName = EVENT_TYPES[reg.eventType as keyof typeof EVENT_TYPES];
-                      const isTeamEvent = reg.eventType === 'duo' || reg.eventType === 'show';
+                      const isTeamEvent = isTeamEventType(reg.eventType);
                       const teammate = isTeamEvent && reg.teamPartnerId ? 
                         athletes.find(a => a.id === reg.teamPartnerId) : null;
                       

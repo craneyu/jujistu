@@ -181,8 +181,8 @@ export default function AthletesManagement() {
       case 'fighting': return '對打組';
       case 'newaza': return '寢技組'; 
       case 'fullcontact': return '格鬥組';
-      case 'duo': return '雙人傳統演武';
-      case 'show': return '雙人創意演武';
+      case 'duo_traditional': return '雙人傳統演武';
+      case 'duo_creative': return '雙人創意演武';
       case 'nogi': return '無道袍組';
       default: return eventType;
     }
@@ -205,7 +205,7 @@ export default function AthletesManagement() {
 
   // 計算正確的量級或分組
   const getDisplayCategory = (registration: any, athlete: any) => {
-    const isDuoEvent = registration.eventType === 'show' || registration.eventType === 'duo';
+    const isDuoEvent = registration.eventType === 'duo_creative' || registration.eventType === 'duo_traditional';
     
     if (isDuoEvent) {
       // 演武項目：顯示性別分組

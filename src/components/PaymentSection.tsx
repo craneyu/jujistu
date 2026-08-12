@@ -204,7 +204,7 @@ export default function PaymentSection({ unitId }: Props) {
                     const ageGroup = reg.athlete.ageGroup;
                     
                     // Check if this is a duo event with a team
-                    if ((eventType === 'duo' || eventType === 'show') && reg.teamPartnerId) {
+                    if ((eventType === 'duo_traditional' || eventType === 'duo_creative') && reg.teamPartnerId) {
                       
                       // Create unique team identifier
                       const teamMembers = [reg.athleteId, reg.teamPartnerId].sort();
@@ -219,7 +219,7 @@ export default function PaymentSection({ unitId }: Props) {
                       
                       itemNumber++;
                       
-                      const eventName = eventType === 'duo' ? '傳統演武' : '創意演武';
+                      const eventName = eventType === 'duo_traditional' ? '傳統演武' : '創意演武';
                       
                       // Always show gender division for duo events
                       const genderDivisionName = 
@@ -264,11 +264,11 @@ export default function PaymentSection({ unitId }: Props) {
                         </tr>
                       );
                       
-                    } else if ((eventType === 'duo' || eventType === 'show') && !reg.teamPartnerId) {
+                    } else if ((eventType === 'duo_traditional' || eventType === 'duo_creative') && !reg.teamPartnerId) {
                       // Solo duo event (no team partner)
                       itemNumber++;
                       
-                      const eventName = eventType === 'duo' ? '傳統演武(單人)' : '創意演武(單人)';
+                      const eventName = eventType === 'duo_traditional' ? '傳統演武(單人)' : '創意演武(單人)';
                       const ageGroupName = 
                         ageGroup === 'child' ? '兒童組' :
                         ageGroup === 'junior' ? '青少年組' :
@@ -302,7 +302,7 @@ export default function PaymentSection({ unitId }: Props) {
                         </tr>
                       );
                       
-                    } else if (eventType !== 'duo' && eventType !== 'show') {
+                    } else if (eventType !== 'duo_traditional' && eventType !== 'duo_creative') {
                       // Individual events (not duo)
                       itemNumber++;
                       

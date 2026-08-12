@@ -4,8 +4,12 @@
 # 也能一鍵部署而保留的，兩邊共用 package.json 的 build:deploy。
 #
 # 沒有這個檔案時 Netlify 會沿用 package.json 的 `npm run build`，
-# 而該指令包含 `prisma migrate deploy`；在 Netlify 上 DATABASE_URL 沒設定時
-# 會直接失敗，build 沒產出 → 網站顯示 Netlify 預設的 "Page not found"。
+# 而該指令的 turbopack 與 postbuild 在部署環境並不適用。
+#
+# 資料庫使用 Postgres：DATABASE_URL 必須在 Netlify UI 的
+# Environment variables 設定（build 與 runtime 都要讀得到），
+# 不要寫在這個檔案裡——[build.environment] 只在 build 期間有效，
+# 而且連線字串屬於機密，不該進版控。
 
 [build]
   command = "npm run build:deploy"
@@ -15,15 +19,7 @@
   # Next.js 15 需要 Node 18.18+。固定版本避免 Netlify 預設值變動造成 build 漂移；
   # 22 是本機驗證過的版本。
   NODE_VERSION = "22"
-  # 只在 build 期間有效，runtime（Functions）讀不到，
-  # runtime 的 DATABASE_URL 請在 Netlify UI 的 Environment variables 設定。
-  DATABASE_URL = "file:./prisma/production.db"
-  # Prisma 的 postinstall 在 Netlify 快取 node_modules 時可能被跳過，
-  # build:netlify 內已顯式呼叫 prisma generate。
   PRISMA_HIDE_UPDATE_MESSAGE = "true"
-  # DATABASE_URL 的值（SQLite 檔案路徑）會被 Next.js 編進 build 產物，
-  # Netlify 的 secrets scanning 會把它當成外洩的密鑰而讓 build 失敗。
-  SECRETS_SCAN_OMIT_KEYS = "DATABASE_URL"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

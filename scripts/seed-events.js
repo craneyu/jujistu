@@ -87,11 +87,15 @@ const categories = [
 ];
 
 async function main() {
-  console.log('開始建立預設競賽項目...');
+  // 冪等：資料庫換成 Postgres 後資料會持續存在，若每次部署都清空重建，
+  // 後台改過的項目設定會被無聲蓋掉。已有資料就直接跳過。
+  const existing = await prisma.eventType.count();
+  if (existing > 0) {
+    console.log(`✅ 已有 ${existing} 個競賽項目，略過種子資料建立`);
+    return;
+  }
 
-  // Clear existing data
-  await prisma.eventCategory.deleteMany();
-  await prisma.eventType.deleteMany();
+  console.log('開始建立預設競賽項目...');
 
   const createdEventTypes = {};
 

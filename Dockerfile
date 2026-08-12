@@ -16,8 +16,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 使用 Azure PostgreSQL schema
-COPY prisma/schema.azure.prisma prisma/schema.prisma
+# prisma/schema.prisma 本身已是 PostgreSQL，不需要再替換成其他 schema。
+# （原本這裡會蓋成 schema.azure.prisma，但那是一套與程式碼不相符的舊資料模型，
+#   會導致 API 找不到對應的 model，該檔案已移除。）
 
 # 產生 Prisma 客戶端
 RUN npx prisma generate

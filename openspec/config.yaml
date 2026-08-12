@@ -19,13 +19,18 @@ context: |
   ORM：Prisma 6.15（@prisma/client），binaryTargets 含 rhel-openssl-3.0.x 供 Lambda 使用
   資料庫：PostgreSQL（serverless 環境須使用 pooled 連線字串；
           migration 走 directUrl 指向 unpooled 連線）
-  認證：JWT（jsonwebtoken）+ bcryptjs 密碼雜湊
-  檔案儲存：Azure Blob Storage（@azure/storage-blob）
-  郵件：nodemailer
+  認證：JWT（jsonwebtoken 9.0.2）+ bcryptjs 3.0.2 密碼雜湊
+  檔案儲存：實際寫入本機檔案系統 public/uploads（fs/promises）。
+           src/lib/azure-storage.ts 雖完整實作了 Azure Blob，但全專案無人 import，
+           屬 dead code；infra/main.bicep 已備妥 storage account 與角色指派，
+           狀態是「基礎設施已備、程式碼未接線」
+  郵件：nodemailer 7.0.6；SMTP 設定從資料庫 SystemConfig 讀取（非環境變數），
+       .env.example 的 EMAIL_* 變數實際上沒有被程式讀取
   日期處理：date-fns 4.1
+  Node 版本：三處設定不一致——CI 用 20、netlify.toml 指定 22、Dockerfile 用 node:18-alpine
 
-  測試：專案目前沒有任何測試檔案與測試框架設定。
-       CI（.github/workflows/deploy.yml）只做建置驗證，不執行測試。
+  測試：專案目前沒有任何測試檔案與測試框架設定，package.json 也沒有 test script。
+       CI（.github/workflows/deploy.yml）的 job 雖名為 test，實際只做建置驗證。
 
   ## 專案結構
   src/app/                — App Router 頁面與 API
@@ -93,13 +98,28 @@ context: |
   - 註解說明「為什麼」而非「做什麼」，特別是繞過平台限制的程式碼必須註明原因
 
   ## 認證與授權
-  兩種互不相通的身分：
-  - 後台管理員：帳號密碼寫死在 src/app/api/admin/login/route.ts 的常數
-    （ADMIN_USERNAME 與 ADMIN_PASSWORD_HASH），不經過資料庫，
-    驗證成功後簽發 JWT（HS256，8 小時效期）。RegistrationUnit 沒有 isAdmin 欄位
-  - 報名單位：資料存 RegistrationUnit，bcryptjs 雜湊密碼，登入後以 localStorage 保存 session
-  JWT 密鑰讀 JWT_SECRET 環境變數，未設定時會退回硬編碼預設值（正式環境務必設定）
-  授權模型：以「單位擁有權」為界，單位只能操作自己的選手與繳費資料
+  兩種身分的保護程度完全不對稱，以下為實況（不是理想設計，修改前務必理解）：
+
+  後台管理員（有 token）：
+  - 帳號與密碼雜湊硬編碼在 src/app/api/admin/login/route.ts 的常數中，不查資料庫。
+    RegistrationUnit 沒有 isAdmin 欄位，兩套身分不相通
+  - 驗證成功後簽發 JWT（payload { username, role: 'admin' }，8 小時效期），
+    前端存於 localStorage.adminToken，請求時帶 Authorization: Bearer
+  - verifyAdmin() 這個驗證函式被逐字複製到 8 個 route 檔案中，
+    沒有抽成 src/lib/auth.ts，也沒有 src/middleware.ts
+  - JWT_SECRET 未設定時會退回硬編碼字串——正式環境未設此變數等同任何人都能自簽 token
+
+  報名單位（無 token）：
+  - 登入成功只回傳單位資料，不發任何 token；前端把整包資料存進 localStorage.unitSession
+  - 後續所有單位端 API（athletes、registrations、payments、units）
+    以請求中未經驗證的 unitId 參數識別身分——改掉 unitId 即可讀寫他人資料
+  - Google OAuth 的 session 以 URL query string 明文傳回首頁
+
+  完全沒有認證的寫入型 API：
+    event-types、event-categories、master-age-config、recalculate-master-categories
+    （皆可未經授權修改競賽設定）
+
+  新增或修改 API 時，請勿假設既有端點已有授權檢查。
 
   ## 設計規範
   字體顏色標準定義於 FONT_COLORS_STANDARD.md，核心原則是確保對比度足夠：
@@ -118,9 +138,14 @@ context: |
 
   ## API 規範
   Base URL：/api，以 App Router Route Handlers 實作，一律為動態路由
-  錯誤格式：統一為 NextResponse.json({ error: '正體中文訊息' }, { status })
-  成功格式：目前不統一——部分端點回 { success: true, data }，部分直接回傳物件。
-           新增端點時建議採用 { success: true, data } 並逐步收斂既有端點
+  錯誤格式：統一為 NextResponse.json({ error: '正體中文訊息' }, { status })。
+           注意失敗時多數不帶 success: false，僅 units/login 例外
+  成功格式：主流（約六成端點）為 { success: true, data }，但有多處例外——
+           config、admin/dashboard、admin/config GET、admin/athletes、admin/units
+           直接回裸物件或陣列；兩支上傳端點的欄位命名也不一致
+           （upload 回 url，upload/banner 回 fileUrl）。
+           新增端點一律採 { success: true, data }，並逐步收斂既有端點
+  建立資源同樣回 200，專案未使用 201
   狀態碼慣例：400 參數／驗證錯誤（最常用）、401 未授權、404 找不到資源、500 伺服器錯誤
   錯誤處理：每個 handler 以 try/catch 包裹，catch 內 console.error 後回傳中文訊息
   zod 驗證失敗時取 error.issues[0].message 作為回應訊息
@@ -140,6 +165,38 @@ context: |
   - Deployment Protection 開啟時網址回 302 導向登入頁，需在 dashboard 關閉
   - vercel.json 的 functions glob 不支援 App Router 的 src/app/api 路徑
   - serverless 檔案系統唯讀，這也是資料庫從 SQLite 改為 Postgres 的原因
+
+  ## 已知落差與技術債
+  以下為「文件說法」與「程式碼實況」不符之處，動手前請以程式碼為準：
+
+  資料正確性相關（會影響行為）：
+  - src/lib/types.ts 的 EVENT_TYPES 使用 duo / show 作為演武項目 key，
+    但 schema 與 seed 使用 duo_traditional / duo_creative。因鍵值對不上，
+    calculateRegistrationFee 的「演武每隊 1200 元」分支永遠不會執行，
+    實際會落入一般項目分支按人計費
+  - calculateAge 的比賽基準日硬編碼為 2025-10-26，未讀 SystemConfig 的
+    competitionStartDate，換屆需改程式碼
+  - 量級有兩套並存：權威來源是資料庫的 EventCategory，但 utils.ts 的
+    getWeightClass() 另有一套硬編碼且數值不同，仍被 PaymentSection 使用
+  - /api/payments 的 POST 只統計 status 為 pending 的報名，GET 統計全部，
+    兩者可能算出不同金額
+  - ageConfig 的 5 分鐘快取沒有任何地方呼叫 clearAgeConfigCache()，
+    後台改完大師組年齡最長 5 分鐘才生效；且既有選手的 masterCategory
+    不會自動更新，需另外呼叫 recalculate-master-categories
+
+  文件過時：
+  - README 仍稱資料庫為 SQLite、報名費每項 NT$1,000（實際為 Postgres、800/1200 分級）
+  - DEPLOYMENT.md 的環境變數與「關於 SQLite」段落仍以 SQLite 為前提
+  - .github/workflows/deploy.yml 的 DATABASE_URL 仍指向 SQLite 檔案
+  - FONT_COLORS_REMINDER.md 與 FONT_COLORS_STANDARD.md 有四處衝突
+    （label 顏色、錯誤訊息色階、text-gray-500 可用範圍、額外的連結與按鈕規範）
+
+  待清理：
+  - src/components/AthleteRegistration.tsx.backup、prisma/prisma/production.db 為殘留檔
+  - 未使用相依：sqlite、sqlite3、@types/sqlite3、ts-node
+  - postcss.config.js 與 postcss.config.mjs 內容等價並存
+  - globals.css 以 !important 定義了兩份設計文件都列為禁用的 text-gray-600 / text-gray-500
+  - 無 ESLint / Prettier 設定
 
   ## Commit 規範
   格式：Conventional Commits，不使用 emoji、不使用 scope
@@ -167,6 +224,7 @@ rules:
     - 涉及 API 變更時，需列出受影響的 Route Handler 路徑與請求／回應格式的前後差異
     - 需說明變更對「單位」與「後台管理員」兩種身分的影響範圍，以及是否觸及授權邊界
     - 新增第三方套件時必須評估 serverless bundle 體積影響；曾因 googleapis 佔 182 MB 而導致部署失敗
+    - 觸及單位端 API 時，必須說明如何處理現行「以未驗證 unitId 識別身分」的問題，不可沿用該模式擴大受影響範圍
     - 涉及部署設定（vercel.json、netlify.toml、build 腳本）時，需說明對其他部署平台的影響
     - 若變更會影響報名流程的四個步驟或繳費鎖定行為，需明確描述新的狀態流轉
 
@@ -201,5 +259,7 @@ rules:
     - "API 錯誤一律回傳 { error: '正體中文訊息' } 並搭配正確狀態碼，catch 內先 console.error 再回應"
     - schema 變更後需執行 prisma migrate dev 產生 migration 並提交，不可手改 migration SQL
     - 資料初始化腳本必須維持冪等；資料庫為持久化的 Postgres，重複部署不可覆蓋既有資料
+    - 新增檔案上傳功能前先確認落地位置；現行實作寫本機 public/uploads，在 serverless 平台會失敗，Azure Blob 封裝存在但未接線
+    - 新增需要授權的 API 時，不要再複製 verifyAdmin；應抽成共用模組後再使用
     - 完成後執行 npm run build:deploy 確認建置通過，涉及 UI 時另行確認手機版排版
     - "Commit 訊息使用 Conventional Commits 格式、以正體中文描述，並說明為什麼這樣改與如何驗證"

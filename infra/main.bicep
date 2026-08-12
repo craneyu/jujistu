@@ -148,7 +148,8 @@ resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: 'app-${resourceToken}'
   location: location
-  tags: tags
+  // azd 透過 azd-service-name 標籤辨識要部署哪個服務的 image 到這個資源
+  tags: union(tags, { 'azd-service-name': 'web' })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -180,7 +181,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       containers: [
         {
           name: 'jujitsu-app'
-          image: '${containerRegistry.properties.loginServer}/jujitsu-registration:latest'
+          // provision 階段 ACR 內還沒有應用程式 image，這裡先用公用的
+          // placeholder；azd deploy 會在推送 image 後把它換成實際版本。
+          // 直接寫最終 image 會導致 MANIFEST_UNKNOWN 而佈建失敗。
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
@@ -217,8 +221,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               value: jwtSecret
             }
             {
+              // 用環境的 defaultDomain 組出網址，而不是引用 containerApp 自己的
+              // ingress.fqdn——後者會造成資源引用自身的循環參照（BCP079）。
               name: 'NEXTAUTH_URL'
-              value: 'https://${containerApp.properties.configuration.ingress.fqdn}'
+              value: 'https://app-${resourceToken}.${containerAppsEnvironment.properties.defaultDomain}'
             }
           ]
         }
@@ -261,6 +267,6 @@ output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.l
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
 output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.name
 output AZURE_STORAGE_ACCOUNT_NAME string = storageAccount.name
-output APP_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output APP_URL string = 'https://app-${resourceToken}.${containerAppsEnvironment.properties.defaultDomain}'
 // 不輸出連線字串：它含有密碼，會出現在部署記錄與 azd 輸出中。
 output POSTGRES_FQDN string = postgresServer.properties.fullyQualifiedDomainName

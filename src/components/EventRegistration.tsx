@@ -19,6 +19,22 @@ interface Athlete {
   registrations: any[];
 }
 
+interface EventCategory {
+  id: string;
+  ageGroup: string;
+  gender: string;
+  weightClass: string;
+  description: string;
+}
+
+interface AvailableEventType {
+  id: string;
+  key: string;
+  name: string;
+  requiresTeam: boolean;
+  categories: EventCategory[];
+}
+
 export default function EventRegistration({ unitId, onEventsRegistered, disabled = false }: Props) {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,6 +42,8 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
   const [selectedEvents, setSelectedEvents] = useState<Record<string, string[]>>({});
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [currentTeamEvent, setCurrentTeamEvent] = useState<{athleteId: string, eventType: string} | null>(null);
+  // 每位選手可報名的項目（含符合其年齡／性別／體重的量級），來自 /api/available-events
+  const [availableByAthlete, setAvailableByAthlete] = useState<Record<string, AvailableEventType[]>>({});
 
   useEffect(() => {
     if (unitId) {
@@ -48,44 +66,49 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
           initialEvents[athlete.id] = athlete.registrations.map((reg: any) => reg.eventType);
         });
         setSelectedEvents(initialEvents);
+
+        // 可報名項目一律由後端決定：/api/available-events 會依選手的年齡組、
+        // 性別與體重篩選出符合的量級，前端不再自行硬編碼判斷條件。
+        const entries = await Promise.all(
+          result.data.map(async (athlete: Athlete) => {
+            try {
+              const res = await fetch(`/api/available-events?athleteId=${athlete.id}`);
+              const json = await res.json();
+              return [athlete.id, json?.data?.eventTypes ?? []] as const;
+            } catch {
+              return [athlete.id, []] as const;
+            }
+          })
+        );
+        setAvailableByAthlete(Object.fromEntries(entries));
       }
     } catch (err) {
       console.error('Failed to fetch athletes:', err);
     }
   };
 
-  const getAvailableEvents = (athlete: Athlete) => {
-    const events = [];
-    
-    // 對打 Fighting - 不適用於兒童組
-    if (athlete.ageGroup !== 'child') {
-      events.push('fighting');
-    }
-    
-    // 寢技 Ne-Waza - 所有組別
-    events.push('newaza');
-    
-    // 格鬥 Full Contact - 成人組和大師組
-    if (athlete.ageGroup === 'adult' || athlete.ageGroup === 'master') {
-      events.push('fullcontact');
-    }
-    
-    // 無道袍 NO GI - 僅成人組
-    if (athlete.ageGroup === 'adult') {
-      events.push('nogi');
-    }
-    
-    // 傳統演武 - 12歲以上
-    if (athlete.ageGroup !== 'child') {
-      events.push('duo_traditional');
-    }
-    
-    // 創意演武 - 12歲以上
-    if (athlete.ageGroup !== 'child') {
-      events.push('duo_creative');
-    }
-    
-    return events;
+  /** 該選手可報名的項目（後端已依年齡組／性別／體重篩選） */
+  const getAvailableEvents = (athlete: Athlete): AvailableEventType[] =>
+    availableByAthlete[athlete.id] ?? [];
+
+  /**
+   * 決定雙人項目要落在哪個組別。
+   *
+   * 組別完全由兩人的性別決定：兩男 men、兩女 women、一男一女 mixed。
+   * 因此不需要讓使用者手動選——也避免兩位隊友選到不同組別，
+   * 那會讓費用計算把同一組算成兩隊。
+   */
+  const pickTeamCategory = (
+    eventType: AvailableEventType,
+    athlete: Athlete,
+    partner: Athlete
+  ): EventCategory | undefined => {
+    const wanted =
+      athlete.gender === partner.gender ? athlete.gender : 'mixed';
+    return (
+      eventType.categories.find((c) => c.gender === wanted) ??
+      eventType.categories[0]
+    );
   };
 
   const toggleEvent = (athleteId: string, eventType: string) => {
@@ -109,12 +132,21 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
     setError(null);
     
     try {
+      // 非雙人項目在這個階段只會有一個符合的量級（後端已依體重篩選）
+      const available = availableByAthlete[athleteId] ?? [];
+      const target = available.find((e) => e.key === eventType);
+      const category = target?.categories[0];
+
+      if (!category) {
+        throw new Error('找不到符合此選手條件的量級');
+      }
+
       const response = await fetch('/api/registrations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           athleteId,
-          eventType
+          eventCategoryId: category.id
         })
       });
 
@@ -139,36 +171,36 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
     setError(null);
     
     try {
-      // 為兩位選手同時報名
-      const promises = [
-        fetch('/api/registrations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            athleteId: currentTeamEvent.athleteId,
-            eventType: currentTeamEvent.eventType,
-            teamPartnerId: partnerId
-          })
-        }),
-        fetch('/api/registrations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            athleteId: partnerId,
-            eventType: currentTeamEvent.eventType,
-            teamPartnerId: currentTeamEvent.athleteId
-          })
-        })
-      ];
+      const athlete = athletes.find((a) => a.id === currentTeamEvent.athleteId);
+      const partner = athletes.find((a) => a.id === partnerId);
+      const available = availableByAthlete[currentTeamEvent.athleteId] ?? [];
+      const target = available.find((e) => e.key === currentTeamEvent.eventType);
 
-      const results = await Promise.all(promises);
-      
-      // 檢查兩個請求是否都成功
-      for (const response of results) {
-        if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || '組隊報名失敗');
-        }
+      if (!athlete || !partner || !target) {
+        throw new Error('找不到選手或項目資料');
+      }
+
+      const category = pickTeamCategory(target, athlete, partner);
+      if (!category) {
+        throw new Error('找不到符合的組別');
+      }
+
+      // 只送一次請求：後端會在同一個交易內為兩位選手各建立一筆互為隊友的紀錄。
+      // 先前拆成兩次請求，第二次會被後端的「隊友已報名」檢查擋下，
+      // 而且一旦只成功一筆，費用會被當成單人參賽而少收一半。
+      const response = await fetch('/api/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          athleteId: currentTeamEvent.athleteId,
+          eventCategoryId: category.id,
+          teamPartnerId: partnerId
+        })
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || '組隊報名失敗');
       }
 
       // 成功後重新載入資料並關閉對話框
@@ -329,12 +361,14 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {Object.entries(EVENT_TYPES).map(([key, label]) => {
-                  const isAvailable = availableEvents.includes(key);
+                {availableEvents.map((eventType) => {
+                  const key = eventType.key;
+                  // 直接用後端回傳的名稱，不再以 key 反查前端常數——
+                  // 兩邊 key 曾經不一致，正是先前演武費用計價出錯的原因。
+                  const label = eventType.name;
                   const isRegistered = athlete.registrations.some((reg: any) => reg.eventType === key);
-                  
-                  if (!isAvailable) return null;
-                  
+                  const category = eventType.categories[0];
+
                   return (
                     <div key={key} className="relative">
                       <button
@@ -365,8 +399,12 @@ export default function EventRegistration({ unitId, onEventsRegistered, disabled
                           }`} />
                         )}
                         <div className="text-sm font-medium text-gray-900">{label}</div>
-                        {isTeamEventType(key) && (
+                        {isTeamEventType(key) ? (
                           <div className="text-xs text-gray-600 mt-1">(2人組隊)</div>
+                        ) : (
+                          category?.description && (
+                            <div className="text-xs text-gray-600 mt-1">{category.description}</div>
+                          )
                         )}
                         {isRegistered && (
                           <Check className="absolute top-1 right-1 h-4 w-4 text-green-600" />

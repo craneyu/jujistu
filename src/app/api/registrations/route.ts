@@ -103,12 +103,15 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Check if partner already registered for this category
+      // 隊友是否已與「其他人」組了同一個項目。
+      // 這裡不能單純檢查隊友有無報名紀錄——雙人報名是一次建立兩筆互為隊友的
+      // 資料，若只看有無紀錄，會把同一組的另一半誤判為衝突。
       const partnerRegistration = await prisma.registration.findFirst({
         where: {
           athleteId: validatedData.teamPartnerId,
           eventType: eventCategory.eventType.key,
-          eventDetail: eventCategory.id
+          eventDetail: eventCategory.id,
+          NOT: { teamPartnerId: validatedData.athleteId }
         }
       });
       
@@ -136,17 +139,44 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create registration
-    const registration = await prisma.registration.create({
-      data: {
-        athleteId: validatedData.athleteId,
-        eventType: eventCategory.eventType.key,
-        eventDetail: eventCategory.id,
-        teamPartnerId: validatedData.teamPartnerId,
-        weightClass: eventCategory.weightClass,
-        genderDivision: eventCategory.gender
-      }
-    });
+    // 建立報名資料。
+    //
+    // 雙人項目一次建立兩筆互為隊友的紀錄，並包在同一個交易裡：
+    // 費用計算（calculateRegistrationFee）是以「兩筆互相指向對方的紀錄」
+    // 判定為一隊並收一次費用，只寫入一筆會被當成單人參賽而少收一半。
+    const base = {
+      eventType: eventCategory.eventType.key,
+      eventDetail: eventCategory.id,
+      weightClass: eventCategory.weightClass,
+      genderDivision: eventCategory.gender,
+    };
+
+    const registration = eventCategory.eventType.requiresTeam
+      ? (
+          await prisma.$transaction([
+            prisma.registration.create({
+              data: {
+                ...base,
+                athleteId: validatedData.athleteId,
+                teamPartnerId: validatedData.teamPartnerId,
+              },
+            }),
+            prisma.registration.create({
+              data: {
+                ...base,
+                athleteId: validatedData.teamPartnerId!,
+                teamPartnerId: validatedData.athleteId,
+              },
+            }),
+          ])
+        )[0]
+      : await prisma.registration.create({
+          data: {
+            ...base,
+            athleteId: validatedData.athleteId,
+            teamPartnerId: validatedData.teamPartnerId,
+          },
+        });
     
     return NextResponse.json({
       success: true,

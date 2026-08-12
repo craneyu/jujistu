@@ -3,21 +3,25 @@ import { NextRequest, NextResponse } from 'next/server';
 // 把整包 API 定義帶進 serverless function。
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
-import { getGoogleRedirectUri } from '@/lib/app-url';
+import { getAppOrigin, getGoogleRedirectUri } from '@/lib/app-url';
 import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
+    // 導向一律以對外網址為基底。request.url 在 Container Apps 內是容器的
+    // 內部位址（Next.js 綁 0.0.0.0:3000），直接拿來組網址會把使用者導到
+    // http://0.0.0.0:3000 而連不上。
+    const origin = getAppOrigin(request);
     const { searchParams } = new URL(request.url);
     const code = searchParams.get('code');
     const error = searchParams.get('error');
 
     if (error) {
-      return NextResponse.redirect(new URL('/?auth=cancelled', request.url));
+      return NextResponse.redirect(new URL('/?auth=cancelled', origin));
     }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/?auth=error', request.url));
+      return NextResponse.redirect(new URL('/?auth=error', origin));
     }
 
     // 取得Google OAuth設定
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
     }, {} as Record<string, string>);
 
     if (configMap.googleAuthEnabled !== 'true' || !configMap.googleClientId || !configMap.googleClientSecret) {
-      return NextResponse.redirect(new URL('/?auth=disabled', request.url));
+      return NextResponse.redirect(new URL('/?auth=disabled', origin));
     }
 
     // 建立OAuth2客戶端
@@ -58,13 +62,13 @@ export async function GET(request: NextRequest) {
 
     if (!userInfoResponse.ok) {
       console.error('取得 Google 使用者資訊失敗:', userInfoResponse.status);
-      return NextResponse.redirect(new URL('/?auth=callback-error', request.url));
+      return NextResponse.redirect(new URL('/?auth=callback-error', origin));
     }
 
     const userInfo: { email?: string; name?: string } = await userInfoResponse.json();
 
     if (!userInfo.email) {
-      return NextResponse.redirect(new URL('/?auth=no-email', request.url));
+      return NextResponse.redirect(new URL('/?auth=no-email', origin));
     }
 
     // 檢查是否已經存在相同email的單位
@@ -113,7 +117,7 @@ export async function GET(request: NextRequest) {
     };
 
     // 創建一個帶有session資料的重定向URL
-    const redirectUrl = new URL('/', request.url);
+    const redirectUrl = new URL('/', origin);
     redirectUrl.searchParams.set('auth', 'success');
     redirectUrl.searchParams.set('session', encodeURIComponent(JSON.stringify(sessionData)));
 
@@ -121,6 +125,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Google OAuth callback error:', error);
-    return NextResponse.redirect(new URL('/?auth=callback-error', request.url));
+    return NextResponse.redirect(new URL('/?auth=callback-error', origin));
   }
 }

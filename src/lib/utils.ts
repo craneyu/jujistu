@@ -1,4 +1,5 @@
 import { differenceInYears } from 'date-fns';
+import { isTeamEventType } from './types';
 
 export function calculateAge(birthDate: Date, referenceDate: Date = new Date('2025-10-26')): number {
   return differenceInYears(referenceDate, birthDate);
@@ -133,7 +134,7 @@ export function calculateRegistrationFee(registrations: any[]): number {
     const eventType = registration.eventType;
     const ageGroup = registration.athlete.ageGroup;
     
-    if (eventType === 'duo' || eventType === 'show') {
+    if (isTeamEventType(eventType)) {
       // For duo events, calculate per team (1200 NT$ per team)
       if (registration.teamPartnerId && registration.genderDivision) {
         // Create a unique team identifier including event type, gender division, and team members

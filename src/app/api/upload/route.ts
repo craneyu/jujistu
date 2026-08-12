@@ -49,7 +49,31 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const extension = path.extname(file.name);
     const filename = `${type}_${uuidv4()}${extension}`;
-    
+
+    // 有設定 Azure 儲存體時上傳到 Blob；否則寫本機（本機開發用）。
+    // serverless 平台（Container Apps、Vercel、Netlify）的檔案系統唯讀且會在
+    // 重新啟動時重置，寫本機在雲端一定失敗。
+    if (process.env.AZURE_STORAGE_ACCOUNT_NAME) {
+      const { getAzureBlobStorage } = await import('@/lib/azure-storage');
+      const result = await getAzureBlobStorage().uploadFile(file, filename);
+
+      if (!result.success) {
+        console.error('Azure Blob upload failed:', result.error);
+        return NextResponse.json({ error: '檔案上傳失敗' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        filename,
+        originalName: file.name,
+        size: file.size,
+        type: file.type,
+        // Blob 容器是私有的，不能直接給瀏覽器用 blob URL；
+        // 一律透過 /api/files 代理讀取。
+        url: `/api/files/${filename}`,
+      });
+    }
+
     // Create upload directory path
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
     const filePath = path.join(uploadDir, filename);

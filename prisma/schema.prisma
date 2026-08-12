@@ -3,14 +3,21 @@
 
 generator client {
   provider = "prisma-client-js"
-  // Netlify Functions 跑在 AWS Lambda (Amazon Linux 2023)，
+  // Vercel 與 Netlify 的 Functions 都跑在 AWS Lambda (Amazon Linux 2023)，
   // 需要 rhel-openssl-3.0.x 的 query engine，否則 runtime 會找不到 engine 而 500。
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
+  // 應用程式連線：serverless 環境務必使用 pooled 連線字串，
+  // 否則並發的 function 會很快耗盡 Postgres 連線數。
+  url       = env("DATABASE_URL")
+  // migration 專用：連線池（pgbouncer 等）不支援 migration 需要的 session 層級操作，
+  // 因此指向 unpooled（direct）連線字串。
+  // 注意 Prisma 要求這個環境變數必須存在；若你的服務商只給一組連線字串，
+  // scripts/build-deploy.js 會自動用 DATABASE_URL 補上。
+  directUrl = env("DIRECT_URL")
 }
 
 // 報名單位

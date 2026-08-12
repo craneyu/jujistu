@@ -33,7 +33,7 @@ export interface Athlete {
 export interface Registration {
   id: string;
   athleteId: string;
-  eventType: 'fighting' | 'newaza' | 'fullcontact' | 'duo' | 'show' | 'nogi';
+  eventType: 'fighting' | 'newaza' | 'fullcontact' | 'duo_traditional' | 'duo_creative' | 'nogi';
   eventDetail?: string;
   weightClass: string;
   status: 'pending' | 'confirmed' | 'cancelled';
@@ -53,14 +53,30 @@ export interface Payment {
   notes?: string;
 }
 
+/**
+ * 競賽項目類型。
+ *
+ * key 必須與資料庫 EventType.key 完全一致（見 scripts/seed-events.js），
+ * 因為 Registration.eventType 存的就是該 key，前端顯示與後端計費都以它比對。
+ * 過去這裡誤用 duo / show，與資料庫的 duo_traditional / duo_creative 對不上，
+ * 導致演武項目顯示不出名稱，且費用計算的「以隊計費」分支永遠不會執行。
+ */
 export const EVENT_TYPES = {
   fighting: '對打',
   newaza: '寢技',
   fullcontact: '格鬥',
-  duo: '傳統演武',
-  show: '創意演武',
+  duo_traditional: '傳統演武',
+  duo_creative: '創意演武',
   nogi: '無道袍'
 } as const;
+
+/** 需要兩人組隊的項目；費用以「隊」計算而非以人計算。 */
+export const TEAM_EVENT_TYPES = ['duo_traditional', 'duo_creative'] as const;
+
+/** 判斷是否為雙人項目。請一律使用此函式，不要在各處硬編碼 key 比對。 */
+export function isTeamEventType(eventType: string): boolean {
+  return (TEAM_EVENT_TYPES as readonly string[]).includes(eventType);
+}
 
 export const AGE_GROUPS = {
   adult: '成人組',

@@ -12,6 +12,16 @@ param location string
 @description('Name of the resource token to make resources unique')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
 
+@secure()
+@minLength(12)
+@description('PostgreSQL 管理員密碼。由 azd 從環境變數提供，不寫入版控。')
+param postgresAdminPassword string
+
+@secure()
+@minLength(32)
+@description('JWT 簽章密鑰。後台登入的 token 以此簽發，務必使用高強度隨機值。')
+param jwtSecret string
+
 // 標籤
 var tags = {
   'azd-env-name': environmentName
@@ -53,7 +63,7 @@ resource postgresServer 'Microsoft.DBforPostgreSQL/flexibleServers@2023-03-01-pr
   properties: {
     version: '15'
     administratorLogin: 'jujitsuadmin'
-    administratorLoginPassword: 'JujitsuApp2024!'
+    administratorLoginPassword: postgresAdminPassword
     storage: {
       storageSizeGB: 32
     }
@@ -138,7 +148,8 @@ resource storageRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-
 resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
   name: 'app-${resourceToken}'
   location: location
-  tags: tags
+  // azd 透過 azd-service-name 標籤辨識要部署哪個服務的 image 到這個資源
+  tags: union(tags, { 'azd-service-name': 'web' })
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -170,7 +181,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       containers: [
         {
           name: 'jujitsu-app'
-          image: '${containerRegistry.properties.loginServer}/jujitsu-registration:latest'
+          // provision 階段 ACR 內還沒有應用程式 image，這裡先用公用的
+          // placeholder；azd deploy 會在推送 image 後把它換成實際版本。
+          // 直接寫最終 image 會導致 MANIFEST_UNKNOWN 而佈建失敗。
+          image: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
           resources: {
             cpu: json('0.5')
             memory: '1Gi'
@@ -178,7 +192,13 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
           env: [
             {
               name: 'DATABASE_URL'
-              value: 'postgresql://jujitsuadmin:JujitsuApp2024!@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+              value: 'postgresql://jujitsuadmin:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+            }
+            {
+              // Prisma 的 schema 宣告了 directUrl，該環境變數必須存在。
+              // Flexible Server 前面沒有連線池，因此與 DATABASE_URL 相同即可。
+              name: 'DIRECT_URL'
+              value: 'postgresql://jujitsuadmin:${postgresAdminPassword}@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
             }
             {
               name: 'AZURE_STORAGE_ACCOUNT_NAME'
@@ -194,15 +214,17 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
             }
             {
               name: 'JWT_SECRET'
-              value: 'your-jwt-secret-key-here'
+              value: jwtSecret
             }
             {
               name: 'NEXTAUTH_SECRET'
-              value: 'your-nextauth-secret-here'
+              value: jwtSecret
             }
             {
+              // 用環境的 defaultDomain 組出網址，而不是引用 containerApp 自己的
+              // ingress.fqdn——後者會造成資源引用自身的循環參照（BCP079）。
               name: 'NEXTAUTH_URL'
-              value: 'https://${containerApp.properties.configuration.ingress.fqdn}'
+              value: 'https://app-${resourceToken}.${containerAppsEnvironment.properties.defaultDomain}'
             }
           ]
         }
@@ -245,5 +267,6 @@ output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.l
 output AZURE_CONTAINER_REGISTRY_NAME string = containerRegistry.name
 output AZURE_CONTAINER_APPS_ENVIRONMENT_NAME string = containerAppsEnvironment.name
 output AZURE_STORAGE_ACCOUNT_NAME string = storageAccount.name
-output APP_URL string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output DATABASE_URL string = 'postgresql://jujitsuadmin:JujitsuApp2024!@${postgresServer.properties.fullyQualifiedDomainName}:5432/jujitsu?sslmode=require'
+output APP_URL string = 'https://app-${resourceToken}.${containerAppsEnvironment.properties.defaultDomain}'
+// 不輸出連線字串：它含有密碼，會出現在部署記錄與 azd 輸出中。
+output POSTGRES_FQDN string = postgresServer.properties.fullyQualifiedDomainName

@@ -3,7 +3,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("正在初始化 SQLite 資料庫...");
+  console.log("正在初始化資料庫...");
 
   // 檢查是否已有管理員帳戶
   const adminExists = await prisma.registrationUnit.findFirst({

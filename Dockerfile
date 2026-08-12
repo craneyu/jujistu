@@ -65,6 +65,11 @@ RUN mkdir -p /opt/prisma \
 
 COPY --from=builder /app/scripts ./scripts
 
+# scripts/init-db.js 是獨立執行的 node 腳本，不經過 Next.js 打包。
+# standalone 的 node_modules 只保留無法被打包的相依，bcryptjs 已被打包進
+# .next 的 chunks，因此獨立腳本 require 時會 MODULE_NOT_FOUND，必須另外複製。
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 

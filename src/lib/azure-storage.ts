@@ -77,6 +77,30 @@ class AzureBlobStorage {
     }
   }
 
+  /**
+   * 下載 blob 內容。容器維持私有，因此由應用程式讀取後再串流給瀏覽器，
+   * 而不是把 blob 網址直接交出去（見 src/app/api/files/[filename]/route.ts）。
+   * 找不到檔案時回傳 null，其餘錯誤往外拋。
+   */
+  async downloadFile(
+    fileName: string
+  ): Promise<{ buffer: Buffer; contentType?: string } | null> {
+    const containerClient = this.blobServiceClient.getContainerClient(
+      this.containerName
+    );
+    const blockBlobClient = containerClient.getBlockBlobClient(fileName);
+
+    try {
+      const buffer = await blockBlobClient.downloadToBuffer();
+      const properties = await blockBlobClient.getProperties();
+      return { buffer, contentType: properties.contentType };
+    } catch (error) {
+      const statusCode = (error as { statusCode?: number })?.statusCode;
+      if (statusCode === 404) return null;
+      throw error;
+    }
+  }
+
   async getFileUrl(fileName: string): Promise<string> {
     const containerClient = this.blobServiceClient.getContainerClient(
       this.containerName

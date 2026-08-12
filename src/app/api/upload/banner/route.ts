@@ -55,6 +55,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 生成檔案名稱
+    const timestamp = Date.now();
+    const fileExtension = path.extname(file.name);
+    const fileName = `banner-${timestamp}${fileExtension}`;
+
+    // 有設定 Azure 儲存體時上傳到 Blob；否則寫本機（本機開發用）。
+    if (process.env.AZURE_STORAGE_ACCOUNT_NAME) {
+      const { getAzureBlobStorage } = await import('@/lib/azure-storage');
+      const result = await getAzureBlobStorage().uploadFile(file, fileName);
+
+      if (!result.success) {
+        console.error('Azure Blob banner upload failed:', result.error);
+        return NextResponse.json({ error: '檔案上傳失敗' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        // 容器為私有，透過 /api/files 代理讀取
+        fileUrl: `/api/files/${fileName}`,
+        fileName,
+      });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -66,10 +89,6 @@ export async function POST(request: NextRequest) {
       // 目錄可能已存在，忽略錯誤
     }
 
-    // 生成檔案名稱
-    const timestamp = Date.now();
-    const fileExtension = path.extname(file.name);
-    const fileName = `banner-${timestamp}${fileExtension}`;
     const filePath = path.join(uploadDir, fileName);
 
     // 儲存檔案

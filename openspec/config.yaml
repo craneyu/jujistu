@@ -1,0 +1,205 @@
+schema: spec-driven
+
+context: |
+  ## 專案概覽
+  柔術比賽線上報名系統，供各道館／單位註冊帳號後，替旗下選手報名競賽項目並完成繳費。
+  Next.js 15 App Router 全端專案（前後端同一個 repo，API 以 Route Handlers 實作），
+  部署於 Vercel，資料庫使用 Postgres（Prisma ORM）。
+
+  ## 技術棧
+  前端：Next.js 15.5.7（App Router）、React 19.1.0、TypeScript 5（strict 模式）
+  樣式：Tailwind CSS 4（透過 @tailwindcss/postcss）
+  UI 元件：Radix UI（react-tabs、react-dialog、react-select）、lucide-react（圖示）
+  表單：react-hook-form 7.62 + zod 4.1（透過 @hookform/resolvers 串接）
+  狀態管理：無外部函式庫，使用 React useState/useEffect 與自訂 hooks，
+            登入狀態以 localStorage 持久化（unitSession、activeTab）
+  Build 工具：Turbopack（僅開發模式），production 使用預設 webpack 路徑
+
+  後端：Next.js Route Handlers（src/app/api），無獨立後端服務
+  ORM：Prisma 6.15（@prisma/client），binaryTargets 含 rhel-openssl-3.0.x 供 Lambda 使用
+  資料庫：PostgreSQL（serverless 環境須使用 pooled 連線字串；
+          migration 走 directUrl 指向 unpooled 連線）
+  認證：JWT（jsonwebtoken）+ bcryptjs 密碼雜湊
+  檔案儲存：Azure Blob Storage（@azure/storage-blob）
+  郵件：nodemailer
+  日期處理：date-fns 4.1
+
+  測試：專案目前沒有任何測試檔案與測試框架設定。
+       CI（.github/workflows/deploy.yml）只做建置驗證，不執行測試。
+
+  ## 專案結構
+  src/app/                — App Router 頁面與 API
+  src/app/api/            — 27 個 Route Handlers，依資源分目錄
+  src/app/admin/          — 後台頁面（dashboard/athletes/events/payments/registrations/units/config）
+  src/components/         — 報名流程的功能元件
+  src/hooks/              — 自訂 hooks
+  src/lib/                — 共用邏輯與外部服務封裝
+  prisma/                 — schema 與 migrations
+  scripts/                — 部署與資料初始化腳本
+
+  關鍵檔案：
+  - src/lib/prisma.ts        — PrismaClient 單例；缺少 DATABASE_URL 時直接拋錯，不提供預設值
+  - src/lib/utils.ts         — 純函式工具（年齡分組、量級、費用計算），client 端可安全引用
+  - src/lib/utils.server.ts  — 需要讀資料庫的工具，僅限 server 端引用
+  - src/lib/ageConfig.ts     — 大師組年齡區間設定，讀 SystemConfig 並快取
+  - src/lib/azure-storage.ts — Azure Blob 上傳封裝
+  - src/lib/email.ts         — 郵件寄送
+  - scripts/build-deploy.js  — 部署建置流程（Vercel/Netlify 共用）
+  - scripts/init-db.js       — 建立預設報名單位（冪等）
+  - scripts/seed-events.js   — 建立 6 個競賽項目與 46 個分組（冪等）
+
+  元件：UnitRegistration（單位註冊/登入）、AthleteRegistration（選手註冊）、
+        EventRegistration（項目報名）、PaymentSection（繳費）、UnitProfile（單位資料）、
+        FileUpload（檔案上傳）、ForgotPassword（密碼重設）
+  Hooks：useCompetitionConfig（賽事設定）、usePaymentStatus（繳費狀態與報名鎖定判斷）
+
+  ## 資料模型
+  主要資料表（PascalCase 命名，主鍵一律 String @id @default(cuid())）：
+  RegistrationUnit  — 報名單位；email 唯一；含 resetToken/resetTokenExpiry 密碼重設欄位
+  Athlete           — 選手；屬於某單位；含年齡分組、大師組別、段位、體重、教練資訊、照片與同意書路徑
+  Registration      — 報名紀錄；@@unique([athleteId, eventType, eventDetail]) 防止重複報名
+                      演武類項目以 teamPartnerId 與 genderDivision 表示雙人組隊
+  Payment           — 繳費紀錄；屬於某單位；含匯款資訊與確認人員／時間
+  EventType         — 競賽項目類型；key 唯一（fighting/newaza/fullcontact/duo_traditional/
+                      duo_creative/nogi）；requiresTeam 標示是否雙人項目
+  EventCategory     — 項目分組；@@unique([eventTypeId, ageGroup, gender, weightClass])
+                      含 minWeight/maxWeight 量級範圍，onDelete: Cascade
+  SystemConfig      — 系統設定的 key-value 表；key 唯一
+
+  審計欄位：createdAt DateTime @default(now())、updatedAt DateTime @updatedAt
+  沒有軟刪除機制。
+
+  ## 主要功能模組
+  報名流程分四個步驟，以首頁分頁呈現，未登入時只能停留在第一步：
+  1. 單位註冊／登入   — 建立單位帳號，或以 email + 密碼登入（另支援 Google OAuth）
+  2. 選手註冊         — 新增選手，系統依出生日期自動判定年齡分組與大師組別
+  3. 項目報名         — 為選手選擇競賽項目與量級，演武類需指定隊友與性別組別
+  4. 繳費             — 計算費用、填寫匯款資料、上傳匯款證明
+
+  年齡分組：child（未滿12）、junior（12-14）、youth（15-17）、adult（18-34）、master（35+）
+  大師組別：M1/M2/M3，年齡區間存於 SystemConfig，可由後台調整（ageConfig 有快取需清除）
+  費用計算：src/lib/utils.ts 的 calculateRegistrationFee；演武類以「隊」計費（每隊 1200 元），
+           並用 teamId 去重避免雙人重複收費；其他項目依年齡分組計價
+  繳費鎖定：繳費送出後 usePaymentStatus 會鎖定報名資料，僅能檢視不能修改
+
+  ## 編碼規範
+  - TypeScript strict 模式；路徑別名 @/* 對應 src/*
+  - 元件一律 function component；需要互動的元件在檔首標註 'use client'
+  - client component 不可引用會連到資料庫的模組。需要查資料庫的工具放 src/lib/utils.server.ts，
+    純計算工具放 src/lib/utils.ts；混在一起會把 Prisma 打進瀏覽器 bundle 並導致建置失敗
+  - Prisma 一律透過 src/lib/prisma.ts 的單例引用，不在各處 new PrismaClient()
+  - 表單驗證使用 zod schema 搭配 react-hook-form；API 端同樣以 zod 驗證輸入
+  - 錯誤訊息一律使用正體中文，面向使用者不暴露技術細節
+  - 註解說明「為什麼」而非「做什麼」，特別是繞過平台限制的程式碼必須註明原因
+
+  ## 認證與授權
+  兩種互不相通的身分：
+  - 後台管理員：帳號密碼寫死在 src/app/api/admin/login/route.ts 的常數
+    （ADMIN_USERNAME 與 ADMIN_PASSWORD_HASH），不經過資料庫，
+    驗證成功後簽發 JWT（HS256，8 小時效期）。RegistrationUnit 沒有 isAdmin 欄位
+  - 報名單位：資料存 RegistrationUnit，bcryptjs 雜湊密碼，登入後以 localStorage 保存 session
+  JWT 密鑰讀 JWT_SECRET 環境變數，未設定時會退回硬編碼預設值（正式環境務必設定）
+  授權模型：以「單位擁有權」為界，單位只能操作自己的選手與繳費資料
+
+  ## 設計規範
+  字體顏色標準定義於 FONT_COLORS_STANDARD.md，核心原則是確保對比度足夠：
+  標題：text-gray-900 + font-bold（主標題）／font-semibold（副標題）
+  內容：主要 text-gray-900、次要 text-gray-800、說明 text-gray-700，一律搭配 font-medium
+  表單：label 用 text-gray-700 font-medium、輸入框文字 text-gray-900、
+        placeholder 是唯一允許較淡的位置
+  狀態：成功 text-green-700、錯誤 text-red-700、警告 text-yellow-700、資訊 text-blue-700
+  禁用：text-gray-400、text-gray-500（placeholder 除外）、text-gray-600（未加粗時）
+  注意 FONT_COLORS_REMINDER.md 對錯誤訊息寫的是 text-red-600，與 STANDARD 的 text-red-700
+  不一致，以 FONT_COLORS_STANDARD.md 為準。
+
+  響應式：手機優先，Tailwind 斷點以 sm 為主要分界。
+  首頁四個步驟分頁在窄螢幕需縮短標籤與內距（手機顯示「單位／選手／項目」，
+  桌面顯示「1. 單位註冊」等完整名稱）。
+
+  ## API 規範
+  Base URL：/api，以 App Router Route Handlers 實作，一律為動態路由
+  錯誤格式：統一為 NextResponse.json({ error: '正體中文訊息' }, { status })
+  成功格式：目前不統一——部分端點回 { success: true, data }，部分直接回傳物件。
+           新增端點時建議採用 { success: true, data } 並逐步收斂既有端點
+  狀態碼慣例：400 參數／驗證錯誤（最常用）、401 未授權、404 找不到資源、500 伺服器錯誤
+  錯誤處理：每個 handler 以 try/catch 包裹，catch 內 console.error 後回傳中文訊息
+  zod 驗證失敗時取 error.issues[0].message 作為回應訊息
+
+  ## 部署
+  正式環境：Vercel（GitHub 原生整合，push 到 main 自動部署 production）
+  建置指令：npm run build:deploy（見 scripts/build-deploy.js），流程為
+           prisma generate → prisma migrate deploy → init-db → seed-events → next build
+  migrate deploy 是必要步驟，失敗即中止建置；示範資料為 best-effort 且冪等
+  環境變數：DATABASE_URL 必填（pooled），DIRECT_URL 選填（unpooled，供 migration；
+           未設定時由建置腳本以 DATABASE_URL 補上）
+  備選平台：netlify.toml（Netlify）、Dockerfile（容器）、azure.yaml + infra（Azure Container Apps）
+  next.config.ts 的 output 在非 Vercel 環境才啟用 standalone；Vercel 有自己的產物格式
+
+  部署上踩過且已記錄於 DEPLOYMENT.md 的坑：
+  - Vercel 會封鎖含已知 CVE 的 Next.js 版本，build 成功但部署不會完成
+  - Deployment Protection 開啟時網址回 302 導向登入頁，需在 dashboard 關閉
+  - vercel.json 的 functions glob 不支援 App Router 的 src/app/api 路徑
+  - serverless 檔案系統唯讀，這也是資料庫從 SQLite 改為 Postgres 的原因
+
+  ## Commit 規範
+  格式：Conventional Commits，不使用 emoji、不使用 scope
+  語言：正體中文描述，型別關鍵字保留英文
+  類型：feat / fix / docs / refactor / chore
+  主分支：main；功能分支 fix/<名稱>、feat/<名稱>、docs/<名稱>
+  流程：開分支 → PR → squash merge（訊息會自動帶上 PR 編號）
+  訊息內容需說明「為什麼」與「如何驗證」，不只列出改了什麼
+
+  ## 常用指令
+  npm run dev            — 本機開發（Turbopack）
+  npm run dev:https      — 以本機憑證啟動 HTTPS 開發伺服器（Google OAuth 測試用）
+  npm run build:deploy   — 部署用建置（含 migration 與示範資料）
+  npm run build          — 本機建置（含 turbopack 與 postbuild seed）
+  npm start              — 啟動 production server
+  npm run prisma:migrate — 開發環境建立 migration
+  npm run prisma:deploy  — 套用既有 migration
+  npx prisma studio      — 以 GUI 檢視資料庫
+
+rules:
+  # 變更提案的撰寫規範
+  proposal:
+    - 必須包含「動機與背景」、「方案描述」、「Non-goals（不做什麼）」三個段落
+    - 涉及資料庫變更時，需說明 schema 異動內容、是否需要 migration、既有資料如何處理
+    - 涉及 API 變更時，需列出受影響的 Route Handler 路徑與請求／回應格式的前後差異
+    - 需說明變更對「單位」與「後台管理員」兩種身分的影響範圍，以及是否觸及授權邊界
+    - 新增第三方套件時必須評估 serverless bundle 體積影響；曾因 googleapis 佔 182 MB 而導致部署失敗
+    - 涉及部署設定（vercel.json、netlify.toml、build 腳本）時，需說明對其他部署平台的影響
+    - 若變更會影響報名流程的四個步驟或繳費鎖定行為，需明確描述新的狀態流轉
+
+  # 功能規格文件的撰寫規範
+  specs:
+    - 每份 spec 對應單一功能模組或 API 資源，範圍不跨越多個報名步驟
+    - 資料欄位需標註型別、是否必填、預設值，並對應到 Prisma model 的實際欄位名稱
+    - 列舉值須完整列出，例如年齡分組 child / junior / youth / adult / master
+    - 需說明該功能屬於公開、需單位登入、或需後台管理員權限
+    - API spec 需明確列出成功與各種失敗情境的 HTTP 狀態碼與回應內容
+    - 涉及費用計算時，須說明演武類「以隊計費」的去重規則
+    - spec 使用正體中文撰寫，技術術語與識別字保留英文原文
+
+  # UI/UX 設計稿的規範
+  designs:
+    - "文字顏色必須遵守 FONT_COLORS_STANDARD.md；禁用 text-gray-400、text-gray-500（placeholder 除外）與未加粗的 text-gray-600"
+    - "表單 label 用 text-gray-700 font-medium，輸入框文字用 text-gray-900，placeholder 才可使用較淡的 placeholder:text-gray-500"
+    - "狀態顏色固定：成功 text-green-700、錯誤 text-red-700、警告 text-yellow-700、資訊 text-blue-700"
+    - 互動狀態（hover / active / disabled）須明確描述樣式變化，停用狀態需同時降低對比並改變游標
+    - 一律使用 Tailwind utility class，不新增全域 CSS class；重複樣式以元件封裝而非自訂 class
+    - "採手機優先，以 sm 斷點區分；需說明窄螢幕下的排版差異（縮短標籤、縮小內距與字級）"
+    - 圖示一律使用既有的 lucide-react，不引入其他圖示套件
+    - 表單錯誤訊息顯示在對應欄位下方，使用正體中文且說明如何修正
+
+  # 實作任務的執行規範
+  tasks:
+    - 每個 task 以單一可驗收的功能或修改為單位，避免一次跨越多個模組
+    - 元件一律使用 function component；需要互動或瀏覽器 API 的元件在檔首加上 'use client'
+    - "嚴禁在 client component 引用會連到資料庫的模組：純計算放 src/lib/utils.ts，需查 DB 的放 src/lib/utils.server.ts"
+    - Prisma 一律使用 src/lib/prisma.ts 匯出的單例，不在其他位置建立 PrismaClient
+    - 表單以 react-hook-form + zod 實作，API 端必須重複驗證一次，不信任前端送來的資料
+    - "API 錯誤一律回傳 { error: '正體中文訊息' } 並搭配正確狀態碼，catch 內先 console.error 再回應"
+    - schema 變更後需執行 prisma migrate dev 產生 migration 並提交，不可手改 migration SQL
+    - 資料初始化腳本必須維持冪等；資料庫為持久化的 Postgres，重複部署不可覆蓋既有資料
+    - 完成後執行 npm run build:deploy 確認建置通過，涉及 UI 時另行確認手機版排版
+    - "Commit 訊息使用 Conventional Commits 格式、以正體中文描述，並說明為什麼這樣改與如何驗證"
